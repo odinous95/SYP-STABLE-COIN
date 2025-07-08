@@ -1,6 +1,11 @@
 // SPDX-License-Identifier: MIT
 
 pragma solidity ^0.8.0;
+
+import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {Lira} from "./Lira.sol"; // Assuming Lira is the stablecoin contract
+
 /**
  *  @title Lira Engine
  *  @author Odi
@@ -10,22 +15,59 @@ pragma solidity ^0.8.0;
  * including minting, burning, and transferring tokens.
  */
 
-contract LiraEngine {
+contract LiraEngine is ReentrancyGuard {
 // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 // Error codes can be defined here
 // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+error liraEngine_greaterThanZero(uint256 amount);
+    error liraEngine_tokenNotAllowed();
+    error liraEngine_depositCollateralTransferFaild();
+    error liraEngine_tokenAddressesAndpriceFeedAddressesMustBeSameLength();
+
 // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 // State variables, mappings, and events can be defined here
 // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+// Mapping to store the price feeds for each collateral address
+    mapping(address collateralAddress => address priceFeed) private s_priceFeeds;
+    // Mapping to store the collateral balances of each user
+    mapping(address user => mapping(address collateralAddress => uint256 amount)) private s_collateralBalances;
+    // Mapping to store the amount of Lira minted by each user
+    mapping(address user => uint256 amountLiraMinted) private s_liraMinted;
+
+    // Addresses of collateral tokens allowed in the system
+    address[] private s_collateralAddresses;
+
+    // Instance of the Lira stablecoin contract
+    Lira private immutable i_liraToken;
+
 // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 // Event declarations can be defined here
 // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+event CollateralDeposited(address indexed user, address indexed collateralAddress, uint256 amount);
+
 // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 // modifiers can be defined here
 //=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 // contract constructor
 // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+
+    /**
+     * @notice Constructor to initialize the Lira Engine with collateral addresses and their corresponding price feeds.
+     * @param collateralAddresses An array of addresses representing the collateral tokens allowed in the system.
+     * @param priceFeedAddresses An array of addresses representing the price feeds for each collateral token.
+     * @param liraTokenAddress The address of the Lira stablecoin contract.
+     */
+    constructor(address[] memory collateralAddresses, address[] memory priceFeedAddresses, address liraTokenAddress) {
+        if (collateralAddresses.length != priceFeedAddresses.length) {
+            revert liraEngine_tokenAddressesAndpriceFeedAddressesMustBeSameLength();
+        }
+        for (uint256 i = 0; i < collateralAddresses.length; i++) {
+            s_priceFeeds[collateralAddresses[i]] = priceFeedAddresses[i];
+            s_collateralAddresses.push(collateralAddresses[i]);
+        }
+        i_liraToken = Lira(liraTokenAddress);
+    }
 // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 // Main Functions for the engine can be defined here
 // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
