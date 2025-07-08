@@ -12,7 +12,6 @@ contract LiraTest is Test {
     function setUp() public {
         owner = address(this); // This test contract is the owner
         user = address(0xBEEF);
-
         lira = new Lira(); // Deploy the Lira contract
     }
 
@@ -39,5 +38,14 @@ contract LiraTest is Test {
     function test_Revert_MintToZeroAddress() public {
         vm.expectRevert("lira_addressZeroNotAllowed()");
         lira.mint(address(0), 1000); // Should revert
+    }
+
+    // -=-=-= burn tests -=-=-=-=-=-=-=-= -=-=-=-=-=-=-=-= //
+
+    function testBurnTokens() public {
+        uint256 mintAmount = 1_000 ether;
+        lira.mint(address(this), mintAmount); // owner mints to themselves
+        lira.burn(mintAmount); // owner burns their tokens
+        assertEq(lira.balanceOf(address(this)), 0);
     }
 }
