@@ -15,7 +15,7 @@ contract LiraTest is Test {
         lira = new Lira(); // Deploy the Lira contract
     }
 
-    // -=-=-= initial state -=-=-= //
+    // -=-=-= initial state -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-= //
     function testInitialState() public view {
         assertEq(lira.name(), "Lira Stable");
         assertEq(lira.symbol(), "LIRA");
@@ -24,7 +24,7 @@ contract LiraTest is Test {
         assertEq(lira.balanceOf(owner), 0);
     }
 
-    // -=-=-= mint tests -=-=-=-=-=-=-=-= -=-=-=-=-=-=-=-= //
+    // -=-=-= mint tests -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-= //
     function testMintTokens() public {
         uint256 mintAmount = 1_000 ether;
 
@@ -40,7 +40,7 @@ contract LiraTest is Test {
         lira.mint(address(0), 1000); // Should revert
     }
 
-    // -=-=-= burn tests -=-=-=-=-=-=-=-= -=-=-=-=-=-=-=-= //
+    // -=-=-= burn tests -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-= //
 
     function testBurnTokens() public {
         uint256 mintAmount = 1_000 ether;
