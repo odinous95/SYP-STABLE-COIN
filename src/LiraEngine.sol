@@ -15,20 +15,19 @@ import {AggregatorV3Interface} from "@chainlink/contracts/src/v0.8/interfaces/Ag
  * 1 lira is pegged to 1 USD.
  * including minting, burning, and transferring tokens.
  */
-
 contract LiraEngine is ReentrancyGuard {
-// -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
-// Error codes can be defined here
-// -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
-error liraEngine_greaterThanZero(uint256 amount);
+    // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+    // Error codes can be defined here
+    // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+    error liraEngine_greaterThanZero(uint256 amount);
     error liraEngine_tokenNotAllowed();
     error liraEngine_depositCollateralTransferFaild();
     error liraEngine_tokenAddressesAndpriceFeedAddressesMustBeSameLength();
 
-// -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
-// State variables, and mappings can be defined here
-// -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
-// Mapping to store the price feeds for each collateral address
+    // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+    // State variables, and mappings can be defined here
+    // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+    // Mapping to store the price feeds for each collateral address
     mapping(address collateralAddress => address priceFeed) private s_priceFeeds;
     // Mapping to store the collateral balances of each user
     mapping(address user => mapping(address collateralAddress => uint256 amount)) private s_collateralBalances;
@@ -41,18 +40,18 @@ error liraEngine_greaterThanZero(uint256 amount);
     // Instance of the Lira stablecoin contract
     Lira private immutable i_liraToken;
 
-uint256 private constant FEED_PRECISION = 1e10;
+    uint256 private constant FEED_PRECISION = 1e10;
     uint256 private constant USD_PRECISION = 1e18;
 
-// -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
-// Event declarations can be defined here
-// -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
-event CollateralDeposited(address indexed user, address indexed collateralAddress, uint256 amount);
+    // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+    // Event declarations can be defined here
+    // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+    event CollateralDeposited(address indexed user, address indexed collateralAddress, uint256 amount);
 
-// -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
-// modifiers can be defined here
-//=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
-modifier isGreaterThanZero(uint256 amount) {
+    // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+    // modifiers can be defined here
+    //=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+    modifier isGreaterThanZero(uint256 amount) {
         if (amount <= 0) {
             revert liraEngine_greaterThanZero(amount);
         }
@@ -67,9 +66,9 @@ modifier isGreaterThanZero(uint256 amount) {
         _;
     }
 
-// -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
-// contract constructor
-// -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+    // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+    // contract constructor
+    // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 
     /**
      * @notice Constructor to initialize the Lira Engine with collateral addresses and their corresponding price feeds.
@@ -87,10 +86,13 @@ modifier isGreaterThanZero(uint256 amount) {
         }
         i_liraToken = Lira(liraTokenAddress);
     }
-// -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
-// Main Functions for the engine can be defined here
-// -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 
+    // -=-=-=-=-=-=-=Collateral Functions=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
+    // 1. depositCollateral() - User can deposit collateral (transfer collateral to the contract)
+    // 2. getAllCollateralsValueInUSD() - User can get the total value of all collaterals in USD
+    // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+
+    // -=-=-=-=-=-=-=-=-=-=-=depositCollateral-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
     /**
      * @notice This function allows users to deposit collateral into the Lira system.
      * @notice CEI - Checks, Effects, Interactions
@@ -116,7 +118,7 @@ modifier isGreaterThanZero(uint256 amount) {
         }
     }
 
-// =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+    // =-=-=-=-=-=-=-getCollateralPriceInUSD=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
     /**
      * @notice This function retrieves the price of a given collateral token in USD.
      * @param collateralAddress The address of the collateral token.
@@ -124,6 +126,7 @@ modifier isGreaterThanZero(uint256 amount) {
      * @return priceInUSD The price of the collateral token in USD.
      * @dev This function uses Chainlink price feeds to get the price of the collateral token.
      * It assumes that the price feed returns the price in 8 decimals and the amount is in 18 decimals.
+     * after we deposit the collateral, we can get the price of the collateral in USD
      */
     function getCollateralPriceInUSD(address collateralAddress, uint256 amount) private view returns (uint256) {
         AggregatorV3Interface priceFeedContract = AggregatorV3Interface(s_priceFeeds[collateralAddress]);
@@ -132,7 +135,7 @@ modifier isGreaterThanZero(uint256 amount) {
         return ((uint256(price) * FEED_PRECISION) * amount) / USD_PRECISION; // Assuming price is in 8 decimals and amount is in 18 decimals
     }
 
-    // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+    // -=-=-=-=-=-=-=-getAllCollateralsValueInUSD=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
     /**
      * @notice This function allows users to get the total collateral value in USD.
      * @param user The address of the user whose collateral value is being queried.
@@ -155,11 +158,32 @@ modifier isGreaterThanZero(uint256 amount) {
         return totalCollateralValue;
     }
 
-// -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
-// Here we define the functions we want to define for the the engine.
-// 1.depositCollater() User can deposit collateral (transfer collateral to the contract)
-// 2.withDrawCollateral() User can withdraw collateral for stable coins (burn lira against the collateral)
-// 3.mint() User can borrow stable coins (mint lira again the collateral)
-// 4.liguidate() liquidation function for the collateral when the collateral value is less than the stable coin value
-// 5 getHealthFactor() function to get the health factor of the collateral
+    // -=-=-=-=-=-=-=-=-=-=-=-=-Minting Functions=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+    // 1. mint() - User can borrow stable coins (mint lira against the collateral)
+    // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+
+    // -=-=-=-=-=-=-=-=mintLira=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+    /**
+     * @notice This function allows users to mint Lira tokens.
+     * @param amountToMint The amount of Lira tokens to mint.
+     * @dev This function is used to mint Lira tokens for the caller.
+     * It is designed to be called by users who want to mint Lira tokens.
+     * It must have more collateral than the amount of Lira tokens they want to mint.
+     * It checks that the amount is greater than zero before proceeding.
+     *
+     */
+    function mintLira(uint256 amountToMint) external isGreaterThanZero(amountToMint) nonReentrant {
+        s_liraMinted[msg.sender] += amountToMint;
+        // they have minted more than they have collateral
+        // _revertIfHealthFactorIsKaput(msg.sender);
+    }
+    // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+    // Here we define the functions we want to define for the the engine.
+    // .depositCollater() User can deposit collateral (transfer collateral to the contract)
+    // .getAllCollateralsValueInUSD() User can get the total value of all collaterals in USD
+    //
+    // .withDrawCollateral() User can withdraw collateral for stable coins (burn lira against the collateral)
+    // .mint() User can borrow stable coins (mint lira again the collateral)
+    // .liguidate() liquidation function for the collateral when the collateral value is less than the stable coin value
+    //  getHealthFactor() function to get the health factor of the collateral
 }
