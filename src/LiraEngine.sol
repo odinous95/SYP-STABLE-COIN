@@ -87,6 +87,31 @@ modifier isGreaterThanZero(uint256 amount) {
 // Main Functions for the engine can be defined here
 // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 
+    /**
+     * @notice This function allows users to deposit collateral into the Lira system.
+     * @notice CEI - Checks, Effects, Interactions
+     * @param collateralAddress The address of the token to be deposited as collateral.
+     * @param amount The amount of the token to be deposited.
+     * @dev This function is used to deposit collateral into the Lira system.
+     * It accepts the address of the token and the amount to be deposited.
+     * It is designed to be called by users who want to provide collateral
+     */
+    function depositCollateral(address collateralAddress, uint256 amount)
+        external
+        isGreaterThanZero(amount)
+        isCollateralAddressAllowed(collateralAddress)
+        nonReentrant
+    {
+        s_collateralBalances[msg.sender][collateralAddress] += amount;
+        // Emit an event for the deposit (optional)
+        emit CollateralDeposited(msg.sender, collateralAddress, amount);
+        // Transfer the tokens from the user to the contract
+        bool success = IERC20(collateralAddress).transferFrom(msg.sender, address(this), amount);
+        if (!success) {
+            revert liraEngine_depositCollateralTransferFaild();
+        }
+    }
+
 // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 // Here we define the functions we want to define for the the engine.
 // 1.depositCollater() User can deposit collateral (transfer collateral to the contract)
