@@ -5,6 +5,7 @@ pragma solidity ^0.8.0;
 import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {Lira} from "./Lira.sol"; // Assuming Lira is the stablecoin contract
+import {AggregatorV3Interface} from "@chainlink/contracts/src/v0.8/interfaces/AggregatorV3Interface.sol";
 
 /**
  *  @title Lira Engine
@@ -25,7 +26,7 @@ error liraEngine_greaterThanZero(uint256 amount);
     error liraEngine_tokenAddressesAndpriceFeedAddressesMustBeSameLength();
 
 // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
-// State variables, mappings, and events can be defined here
+// State variables, and mappings can be defined here
 // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 // Mapping to store the price feeds for each collateral address
     mapping(address collateralAddress => address priceFeed) private s_priceFeeds;
@@ -39,6 +40,9 @@ error liraEngine_greaterThanZero(uint256 amount);
 
     // Instance of the Lira stablecoin contract
     Lira private immutable i_liraToken;
+
+uint256 private constant FEED_PRECISION = 1e10;
+    uint256 private constant USD_PRECISION = 1e18;
 
 // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 // Event declarations can be defined here
@@ -110,6 +114,45 @@ modifier isGreaterThanZero(uint256 amount) {
         if (!success) {
             revert liraEngine_depositCollateralTransferFaild();
         }
+    }
+
+// =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+    /**
+     * @notice This function retrieves the price of a given collateral token in USD.
+     * @param collateralAddress The address of the collateral token.
+     * @param amount The amount of the collateral token.
+     * @return priceInUSD The price of the collateral token in USD.
+     * @dev This function uses Chainlink price feeds to get the price of the collateral token.
+     * It assumes that the price feed returns the price in 8 decimals and the amount is in 18 decimals.
+     */
+    function getCollateralPriceInUSD(address collateralAddress, uint256 amount) private view returns (uint256) {
+        AggregatorV3Interface priceFeedContract = AggregatorV3Interface(s_priceFeeds[collateralAddress]);
+        (, int256 price,,,) = priceFeedContract.latestRoundData();
+
+        return ((uint256(price) * FEED_PRECISION) * amount) / USD_PRECISION; // Assuming price is in 8 decimals and amount is in 18 decimals
+    }
+
+    // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+    /**
+     * @notice This function allows users to get the total collateral value in USD.
+     * @param user The address of the user whose collateral value is being queried.
+     * @return totalCollateralValue The total value of the user's collateral in USD.
+     * @dev This function calculates the total value of all collateral held by a user in USD.
+     * It iterates through the user's collateral balances and sums up the values based on the price feeds.
+     */
+    function getAllCollateralsValueInUSD(address user) public view returns (uint256) {
+        uint256 totalCollateralValue = 0;
+        // Iterate through the user's collateral balances
+        for (uint256 i = 0; i < s_collateralAddresses.length; i++) {
+            address collateralAddress = s_collateralAddresses[i];
+            uint256 collateralAmount = s_collateralBalances[user][collateralAddress];
+            if (collateralAmount > 0) {
+                // Assuming getPriceInUSD is a function that returns the price of the token in USD
+                uint256 priceInUSD = getCollateralPriceInUSD(s_priceFeeds[collateralAddress], collateralAmount);
+                totalCollateralValue += collateralAmount * priceInUSD;
+            }
+        }
+        return totalCollateralValue;
     }
 
 // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
