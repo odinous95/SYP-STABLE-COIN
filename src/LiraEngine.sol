@@ -51,6 +51,12 @@ contract LiraEngine is ReentrancyGuard {
     // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
     // modifiers can be defined here
     //=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+
+    /**
+     * @notice This modifier checks if the amount is greater than zero.
+     * @param amount The amount to be checked.
+     * @dev If the amount is less than or equal to zero, it will revert with an error.
+     */
     modifier isGreaterThanZero(uint256 amount) {
         if (amount <= 0) {
             revert liraEngine_greaterThanZero(amount);
@@ -58,6 +64,11 @@ contract LiraEngine is ReentrancyGuard {
         _;
     }
 
+    /**
+     * @notice This modifier checks if the collateral address is allowed in the system.
+     * @param tokenAddress The address of the token to be checked.
+     * @dev If the token address is not in the price feed mapping, it will revert with an error.
+     */
     modifier isCollateralAddressAllowed(address tokenAddress) {
         if (s_priceFeeds[tokenAddress] == address(0)) {
             // If the token is not in the price feed mapping, it is not allowed
@@ -67,7 +78,7 @@ contract LiraEngine is ReentrancyGuard {
     }
 
     // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
-    // contract constructor
+    // contract constructor||||||||||||||||||||||||||||||||||||||||||
     // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 
     /**
@@ -87,12 +98,9 @@ contract LiraEngine is ReentrancyGuard {
         i_liraToken = Lira(liraTokenAddress);
     }
 
-    // -=-=-=-=-=-=-=Collateral Functions=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
+    // Collateral Functions||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
     // 1. depositCollateral() - User can deposit collateral (transfer collateral to the contract)
-    // 2. getAllCollateralsValueInUSD() - User can get the total value of all collaterals in USD
     // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
-
-    // -=-=-=-=-=-=-=-=-=-=-=depositCollateral-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
     /**
      * @notice This function allows users to deposit collateral into the Lira system.
      * @notice CEI - Checks, Effects, Interactions
@@ -117,8 +125,10 @@ contract LiraEngine is ReentrancyGuard {
             revert liraEngine_depositCollateralTransferFaild();
         }
     }
-
-    // =-=-=-=-=-=-=-getCollateralPriceInUSD=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+    // 2. getCollateralBalance() - User can get the balance of a specific collateral token
+    // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+    // 3. getCollateralPriceInUSD - User can get the price of a specific collateral token in USD
+    // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
     /**
      * @notice This function retrieves the price of a given collateral token in USD.
      * @param collateralAddress The address of the collateral token.
@@ -128,6 +138,7 @@ contract LiraEngine is ReentrancyGuard {
      * It assumes that the price feed returns the price in 8 decimals and the amount is in 18 decimals.
      * after we deposit the collateral, we can get the price of the collateral in USD
      */
+
     function getCollateralPriceInUSD(address collateralAddress, uint256 amount) private view returns (uint256) {
         AggregatorV3Interface priceFeedContract = AggregatorV3Interface(s_priceFeeds[collateralAddress]);
         (, int256 price,,,) = priceFeedContract.latestRoundData();
@@ -135,7 +146,8 @@ contract LiraEngine is ReentrancyGuard {
         return ((uint256(price) * FEED_PRECISION) * amount) / USD_PRECISION; // Assuming price is in 8 decimals and amount is in 18 decimals
     }
 
-    // -=-=-=-=-=-=-=-getAllCollateralsValueInUSD=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+    // 4. getAllCollateralsValueInUSD() - User can get the total value of all collaterals in USD
+    // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
     /**
      * @notice This function allows users to get the total collateral value in USD.
      * @param user The address of the user whose collateral value is being queried.
@@ -158,11 +170,9 @@ contract LiraEngine is ReentrancyGuard {
         return totalCollateralValue;
     }
 
-    // -=-=-=-=-=-=-=-=-=-=-=-=-Minting Functions=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
-    // 1. mint() - User can borrow stable coins (mint lira against the collateral)
-    // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
-
-    // -=-=-=-=-=-=-=-=mintLira=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+    // Minting Functions||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
+    // 1. mintLira() - User can borrow stable coins (mint lira against the collateral)
+    // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
     /**
      * @notice This function allows users to mint Lira tokens.
      * @param amountToMint The amount of Lira tokens to mint.
@@ -177,13 +187,34 @@ contract LiraEngine is ReentrancyGuard {
         // they have minted more than they have collateral
         // _revertIfHealthFactorIsKaput(msg.sender);
     }
-    // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
-    // Here we define the functions we want to define for the the engine.
-    // .depositCollater() User can deposit collateral (transfer collateral to the contract)
-    // .getAllCollateralsValueInUSD() User can get the total value of all collaterals in USD
-    //
-    // .withDrawCollateral() User can withdraw collateral for stable coins (burn lira against the collateral)
-    // .mint() User can borrow stable coins (mint lira again the collateral)
-    // .liguidate() liquidation function for the collateral when the collateral value is less than the stable coin value
-    //  getHealthFactor() function to get the health factor of the collateral
+    // 2. getLiraMinted() - User can get the total amount of lira minted
+    // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+    /**
+     * @notice This function retrieves the total amount of Lira tokens minted by a user.
+     * @param user The address of the user whose minted Lira tokens are being queried.
+     * @return The total amount of Lira tokens minted by the user.
+     * @dev This function is used to get the total amount of Lira tokens minted by a specific user.
+     */
+
+    function getLiraMinted(address user) private view returns (uint256) {
+        return s_liraMinted[user];
+    }
+
+    // Account info functions||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
+    // 1.getAccountInfo() - User can get account info (total collateral value and total lira minted)
+    // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+    /**
+     * @notice This function retrieves account information for a user, including total collateral value and total Lira minted.
+     * @param user The address of the user whose health factor is being queried.
+     * @dev This function calculates the health factor based on the total collateral value and total Lira minted by the user.
+     */
+    function _getAccountInfo(address user)
+        private
+        view
+        returns (uint256 totalCollateralValueInUSD, uint256 totalLiraMinted)
+    {
+        totalLiraMinted = getLiraMinted(user);
+        totalCollateralValueInUSD = getAllCollateralsValueInUSD(user);
+        return (totalLiraMinted, totalCollateralValueInUSD);
+    }
 }
