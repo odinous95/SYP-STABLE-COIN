@@ -48,6 +48,21 @@ event CollateralDeposited(address indexed user, address indexed collateralAddres
 // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 // modifiers can be defined here
 //=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+modifier isGreaterThanZero(uint256 amount) {
+        if (amount <= 0) {
+            revert liraEngine_greaterThanZero(amount);
+        }
+        _;
+    }
+
+    modifier isCollateralAddressAllowed(address tokenAddress) {
+        if (s_priceFeeds[tokenAddress] == address(0)) {
+            // If the token is not in the price feed mapping, it is not allowed
+            revert liraEngine_tokenNotAllowed();
+        }
+        _;
+    }
+
 // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 // contract constructor
 // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
