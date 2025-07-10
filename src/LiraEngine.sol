@@ -196,6 +196,10 @@ contract LiraEngine is ReentrancyGuard {
     function mintLira(uint256 amountToMint) external isGreaterThanZero(amountToMint) nonReentrant {
         s_liraMinted[msg.sender] += amountToMint;
         _revertIfHealthFactorIsKaput(msg.sender);
+bool minted = i_liraToken.mint(msg.sender, amountToMint);
+        if (!minted) {
+            revert liraEngine_mintingFaild();
+        }
     }
     // 2. getLiraMinted() - User can get the total amount of lira minted
     // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
