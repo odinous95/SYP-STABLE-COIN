@@ -19,10 +19,18 @@ contract LiraEngine is ReentrancyGuard {
     // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
     // Error codes can be defined here
     // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+/// @notice Error thrown when the amount is not greater than zero
     error liraEngine_greaterThanZero(uint256 amount);
+/// @notice Error thrown when the token address is not allowed in the system
     error liraEngine_tokenNotAllowed();
+/// @notice Error thrown when the transfer of collateral tokens fails
     error liraEngine_depositCollateralTransferFaild();
+/// @notice Error thrown when the length of token addresses and price feed addresses do not match
     error liraEngine_tokenAddressesAndpriceFeedAddressesMustBeSameLength();
+/// @notice Error thrown when the health factor is too low
+    error liraEngine_healthFactorTooLow(uint256 healthFactor);
+/// @notice Error thrown when minting fails
+    error liraEngine_mintingFaild();
 
     // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
     // State variables, and mappings can be defined here
@@ -40,7 +48,7 @@ contract LiraEngine is ReentrancyGuard {
     // Instance of the Lira stablecoin contract
     Lira private immutable i_liraToken;
 
-    uint256 private constant FEED_PRECISION = 1e10;
+    uint256 private constant FEED_PRECISION = 1e10; // 1 Lira = 1 USD, so we use 10 decimals for price feeds
     uint256 private constant USD_PRECISION = 1e18; // 1 Lira = 1 USD, so we use 18 decimals for USD and 10 for price feeds
     uint256 private constant LIQUIDATION_LIMI = 50; // 50% liquidation limit
     uint256 private constant LIQUIDATION_PRECENTAGE = 100; // 100% liquidation limit
@@ -48,6 +56,7 @@ contract LiraEngine is ReentrancyGuard {
     // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
     // Event declarations can be defined here
     // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+
     event CollateralDeposited(address indexed user, address indexed collateralAddress, uint256 amount);
 
     // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
@@ -186,8 +195,7 @@ contract LiraEngine is ReentrancyGuard {
      */
     function mintLira(uint256 amountToMint) external isGreaterThanZero(amountToMint) nonReentrant {
         s_liraMinted[msg.sender] += amountToMint;
-        // they have minted more than they have collateral
-        // _revertIfHealthFactorIsKaput(msg.sender);
+        _revertIfHealthFactorIsKaput(msg.sender);
     }
     // 2. getLiraMinted() - User can get the total amount of lira minted
     // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
@@ -198,11 +206,11 @@ contract LiraEngine is ReentrancyGuard {
      * @dev This function is used to get the total amount of Lira tokens minted by a specific user.
      */
 
-    function getLiraMinted(address user) private view returns (uint256) {
+    function _getLiraMinted(address user) private view returns (uint256) {
         return s_liraMinted[user];
     }
 
-    // Account info functions||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
+    // Account info functions and HealthFactor||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
     // 1.getAccountInfo() - User can get account info (total collateral value and total lira minted)
     // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
     /**
@@ -215,7 +223,7 @@ contract LiraEngine is ReentrancyGuard {
         view
         returns (uint256 totalCollateralValueInUSD, uint256 totalLiraMinted)
     {
-        totalLiraMinted = getLiraMinted(user);
+        totalLiraMinted = _getLiraMinted(user);
         totalCollateralValueInUSD = getAllCollateralsValueInUSD(user);
         return (totalLiraMinted, totalCollateralValueInUSD);
     }
