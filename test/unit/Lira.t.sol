@@ -2,7 +2,7 @@
 pragma solidity ^0.8.18;
 
 import "forge-std/Test.sol";
-import "../src/Lira.sol";
+import {Lira} from "../../src/Lira.sol";
 
 contract LiraTest is Test {
     Lira private lira;
