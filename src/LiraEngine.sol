@@ -41,8 +41,10 @@ contract LiraEngine is ReentrancyGuard {
     Lira private immutable i_liraToken;
 
     uint256 private constant FEED_PRECISION = 1e10;
-    uint256 private constant USD_PRECISION = 1e18;
-
+    uint256 private constant USD_PRECISION = 1e18; // 1 Lira = 1 USD, so we use 18 decimals for USD and 10 for price feeds
+    uint256 private constant LIQUIDATION_LIMI = 50; // 50% liquidation limit
+    uint256 private constant LIQUIDATION_PRECENTAGE = 100; // 100% liquidation limit
+    uint256 private constant MIN_HEALTH_FACTOR = 1; // Minimum health factor to avoid liquidation
     // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
     // Event declarations can be defined here
     // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
@@ -216,5 +218,19 @@ contract LiraEngine is ReentrancyGuard {
         totalLiraMinted = getLiraMinted(user);
         totalCollateralValueInUSD = getAllCollateralsValueInUSD(user);
         return (totalLiraMinted, totalCollateralValueInUSD);
+    }
+
+    function _healthFactor(address user) private view returns (uint256) {
+        (uint256 totalLiraMinted, uint256 totalCollateralValueInUSD) = _getAccountInfo(user);
+        uint256 collateralAdjustedForLiquidation = totalCollateralValueInUSD * LIQUIDATION_LIMI / LIQUIDATION_PRECENTAGE; // Adjust collateral value for liquidation limit
+        return (collateralAdjustedForLiquidation * USD_PRECISION) / totalLiraMinted; // Health factor calculation
+    }
+    // 2. _revertIfHealthFactorIsKaput() - Internal function to check if the health factor is below a certain threshold
+
+    function _revertIfHealthFactorIsKaput(address user) private view {
+        uint256 healthFactor = _healthFactor(user);
+        if (healthFactor < MIN_HEALTH_FACTOR) {
+            revert liraEngine_healthFactorTooLow(healthFactor);
+        }
     }
 }
