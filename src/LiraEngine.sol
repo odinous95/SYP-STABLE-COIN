@@ -19,17 +19,17 @@ contract LiraEngine is ReentrancyGuard {
     // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
     // Error codes can be defined here
     // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
-/// @notice Error thrown when the amount is not greater than zero
+    /// @notice Error thrown when the amount is not greater than zero
     error liraEngine_greaterThanZero(uint256 amount);
-/// @notice Error thrown when the token address is not allowed in the system
+    /// @notice Error thrown when the token address is not allowed in the system
     error liraEngine_tokenNotAllowed();
-/// @notice Error thrown when the transfer of collateral tokens fails
+    /// @notice Error thrown when the transfer of collateral tokens fails
     error liraEngine_depositCollateralTransferFaild();
-/// @notice Error thrown when the length of token addresses and price feed addresses do not match
+    /// @notice Error thrown when the length of token addresses and price feed addresses do not match
     error liraEngine_tokenAddressesAndpriceFeedAddressesMustBeSameLength();
-/// @notice Error thrown when the health factor is too low
+    /// @notice Error thrown when the health factor is too low
     error liraEngine_healthFactorTooLow(uint256 healthFactor);
-/// @notice Error thrown when minting fails
+    /// @notice Error thrown when minting fails
     error liraEngine_mintingFaild();
 
     // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
@@ -150,7 +150,7 @@ contract LiraEngine is ReentrancyGuard {
      * after we deposit the collateral, we can get the price of the collateral in USD
      */
 
-    function getCollateralPriceInUSD(address collateralAddress, uint256 amount) private view returns (uint256) {
+    function getCollateralPriceInUSD(address collateralAddress, uint256 amount) public view returns (uint256) {
         AggregatorV3Interface priceFeedContract = AggregatorV3Interface(s_priceFeeds[collateralAddress]);
         (, int256 price,,,) = priceFeedContract.latestRoundData();
 
@@ -196,7 +196,7 @@ contract LiraEngine is ReentrancyGuard {
     function mintLira(uint256 amountToMint) external isGreaterThanZero(amountToMint) nonReentrant {
         s_liraMinted[msg.sender] += amountToMint;
         _revertIfHealthFactorIsKaput(msg.sender);
-bool minted = i_liraToken.mint(msg.sender, amountToMint);
+        bool minted = i_liraToken.mint(msg.sender, amountToMint);
         if (!minted) {
             revert liraEngine_mintingFaild();
         }
