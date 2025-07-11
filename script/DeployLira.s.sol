@@ -10,15 +10,15 @@ contract DeployLiraEngine is Script {
     address[] public collateralAddresses;
     address[] public priceFeedsAdresses;
 
-    function run() external returns (Lira, LiraEngine) {
-        HelperConfig config = new HelperConfig();
-        HelperConfig.ChainConfig memory chainConfig = config.getActiveChainConfig();
-
-        address wethAddressPriceFeed = chainConfig.wethAddressPriceFeed;
-        address wbtcAddressPriceFeed = chainConfig.wbtcAddressPriceFeed;
-        address wethAddress = chainConfig.wethAddress;
-        address wbtcAddress = chainConfig.wbtcAddress;
-        // uint256 deployerKey = chainConfig.deployerKey;
+    function run() external returns (Lira, LiraEngine, HelperConfig) {
+        HelperConfig helperConfig = new HelperConfig();
+        (
+            address wethAddressPriceFeed,
+            address wbtcAddressPriceFeed,
+            address wethAddress,
+            address wbtcAddress,
+            uint256 deployerKey
+        ) = helperConfig.activeChainConfig();
 
         // Set up the collateral and price feed addresses
         collateralAddresses = [wethAddress, wbtcAddress];
@@ -30,6 +30,6 @@ contract DeployLiraEngine is Script {
         // Initialize the Lira contract with the LiraEngine address only
         lira.transferOwnership(address(liraEngine));
         vm.stopBroadcast();
-        return (lira, liraEngine);
+        return (lira, liraEngine, helperConfig);
     }
 }

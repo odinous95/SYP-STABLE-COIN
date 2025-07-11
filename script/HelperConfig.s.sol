@@ -18,6 +18,8 @@ abstract contract ChainParameters {
 }
 
 contract HelperConfig is Script, ChainParameters {
+    ChainConfig public activeChainConfig;
+
     struct ChainConfig {
         address wethAddressPriceFeed;
         address wbtcAddressPriceFeed;
@@ -26,17 +28,13 @@ contract HelperConfig is Script, ChainParameters {
         uint256 deployerKey;
     }
 
-    ChainConfig public activeChainConfig;
-
     constructor() {
         if (block.chainid == 11155111) {
             // Sepolia Testnet
             activeChainConfig = getSepoliaETHConfig();
         } else if (block.chainid == 31337) {
             // Local Anvil
-            activeChainConfig = getActiveChainConfig();
-        } else {
-            revert("Unsupported network");
+            activeChainConfig = getAnvillChainConfig();
         }
     }
     //-=-=--=-=--=-=-==-=-=-=-getSepoliaETHConfig-=-=-=--=-=-=--=-=-=--=-=-=--=-=-=--=-=-=--=-=-=--=-=-=--=-=-=--=-=
@@ -46,8 +44,8 @@ contract HelperConfig is Script, ChainParameters {
      * It returns a ChainConfig struct containing the addresses of WETH and WBTC price feeds,
      * as well as the addresses of ETH and WBTC tokens, and the deployer key.
      */
-    function getSepoliaETHConfig() public view returns (ChainConfig memory) {
-        return ChainConfig({
+    function getSepoliaETHConfig() public view returns (ChainConfig memory sepoliaChainConfig) {
+        sepoliaChainConfig = ChainConfig({
             wethAddressPriceFeed: ChainParameters.wethAddressPriceFeed,
             wbtcAddressPriceFeed: ChainParameters.wbtcAddressPriceFeed,
             wethAddress: ChainParameters.wethAddress,
@@ -59,11 +57,11 @@ contract HelperConfig is Script, ChainParameters {
     //-=-=--=-=--=-=-==-=-=-=-getActiveChainConfig-=-=-=--=-=-=--=-=-=--=-=-=--=-=-=--=-=-=--=-=-=--=-=-=--=-=-=--=-=
     /**
      * @notice This function retrieves the active chain configuration.
-     * If the WETH address price feed is not set, it initializes the activeChainConfig
+     * If the WETH address price feed is not set, it initializes the getAnvillChainConfig
      * with the local anvil configuration.
-     * @return ChainConfig The active chain configuration.
+     * @return anvilChainConfig The active chain configuration.
      */
-    function getActiveChainConfig() public returns (ChainConfig memory) {
+    function getAnvillChainConfig() public returns (ChainConfig memory anvilChainConfig) {
         if (activeChainConfig.wethAddressPriceFeed != address(0)) {
             return activeChainConfig;
         }
@@ -72,12 +70,11 @@ contract HelperConfig is Script, ChainParameters {
         // ETH price feed mock and ERC20 mock
         MockV3Aggregator ethUsdPriceFeed = new MockV3Aggregator(8, 2000e8);
         ERC20Mock wethMock = new ERC20Mock();
-
         // BTC price feed mock and ERC20 mock
         MockV3Aggregator btcUsdPriceFeed = new MockV3Aggregator(8, 20000e8);
         ERC20Mock wbtcMock = new ERC20Mock();
         vm.stopBroadcast();
-        return ChainConfig({
+        anvilChainConfig = ChainConfig({
             wethAddressPriceFeed: address(ethUsdPriceFeed),
             wbtcAddressPriceFeed: address(btcUsdPriceFeed),
             wethAddress: address(wethMock),
