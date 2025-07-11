@@ -9,21 +9,34 @@ import {HelperConfig} from "../../script/HelperConfig.s.sol";
 
 contract LiraEngineTest is Test {
     DeployLiraEngine deployer;
-    HelperConfig chainConfig;
-    LiraEngine engine;
+    HelperConfig helperConfig;
+    LiraEngine liraEngine;
     Lira lira;
+    address wethPriceFeed;
+    address weth;
 
-    function setUp() public {
+    function setUp() external {
         deployer = new DeployLiraEngine();
-        (lira, engine, chainConfig) = deployer.run();
+        (lira, liraEngine, helperConfig) = deployer.run();
         (
             address wethAddressPriceFeed,
             address wbtcAddressPriceFeed,
             address wethAddress,
             address wbtcAddress,
             uint256 deployerKey
-        ) = chainConfig.activeChainConfig();
+        ) = helperConfig.activeChainConfig();
+        wethPriceFeed = wethAddressPriceFeed;
+        weth = wethAddress;
     }
 
-    function testGetUsdValue() public {}
+    function testGetUsdValue() public view {
+        // Arrange
+        uint256 amount = 1 ether; // 1 ETH in wei
+        uint256 expectedUsdValue = 2000 * 10 ** 18; // Assuming 1 ETH = $2000
+        // Act
+        uint256 usdValue = liraEngine.getCollateralPriceInUSD(weth, amount);
+
+        // Assert
+        assertEq(usdValue, expectedUsdValue, "USD value should match expected value");
+    }
 }
