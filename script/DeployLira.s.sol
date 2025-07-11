@@ -6,7 +6,7 @@ import {Lira} from "../src/Lira.sol";
 import {LiraEngine} from "../src/LiraEngine.sol";
 import {HelperConfig} from "./HelperConfig.s.sol";
 
-contract DeployLira is Script {
+contract DeployLiraEngine is Script {
     address[] public collateralAddresses;
     address[] public priceFeedsAdresses;
 
@@ -18,7 +18,7 @@ contract DeployLira is Script {
         address wbtcAddressPriceFeed = chainConfig.wbtcAddressPriceFeed;
         address wethAddress = chainConfig.wethAddress;
         address wbtcAddress = chainConfig.wbtcAddress;
-        uint256 deployerKey = chainConfig.deployerKey;
+        // uint256 deployerKey = chainConfig.deployerKey;
 
         // Set up the collateral and price feed addresses
         collateralAddresses = [wethAddress, wbtcAddress];
