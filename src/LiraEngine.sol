@@ -138,6 +138,16 @@ contract LiraEngine is ReentrancyGuard {
     }
     // 2. getCollateralBalance() - User can get the balance of a specific collateral token
     // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+/**
+     * @notice This function retrieves the balance of a specific collateral token for a user.
+     * @param collateralAddress The address of the collateral token.
+     * @return The balance of the specified collateral token for the user.
+     * @dev This function is used to get the balance of a specific collateral token for a user.
+     */
+
+    function getCollateralBalance(address collateralAddress) public view returns (uint256) {
+        return s_collateralBalances[msg.sender][collateralAddress];
+    }
     // 3. getCollateralPriceInUSD - User can get the price of a specific collateral token in USD
     // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
     /**
