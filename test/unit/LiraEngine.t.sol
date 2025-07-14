@@ -15,6 +15,8 @@ contract LiraEngineTest is Test {
     Lira lira;
     address wethPriceFeed;
     address weth;
+    address wbtcPriceFeed;
+    address wbtc;
 
     address public USER = makeAddr("user");
     uint256 public COLLATERAL_AMOUNT = 1 ether; // 1 ETH in wei
@@ -32,10 +34,27 @@ contract LiraEngineTest is Test {
         ) = helperConfig.activeChainConfig();
         wethPriceFeed = wethAddressPriceFeed;
         weth = wethAddress;
+        wbtcPriceFeed = wbtcAddressPriceFeed;
+        wbtc = wbtcAddress;
         ERC20Mock(weth).mint(USER, TOKEN_AMOUNT);
     }
-    // pirce tests
 
+    // constructor tests ||||||||||||||||||||||
+    address[] public collateralAddresses;
+    address[] public priceFeedAddresses;
+
+    function testRevertIfCollateralAddressLengthDoesNotMatchPriceFeeds() public {
+        // Arrange
+        collateralAddresses.push(weth);
+        priceFeedAddresses.push(wethPriceFeed);
+        priceFeedAddresses.push(wbtcPriceFeed);
+        // Act & Assert
+        vm.expectRevert(LiraEngine.liraEngine_tokenAddressesAndpriceFeedAddressesMustBeSameLength.selector);
+        // Attempt to deploy LiraEngine with mismatched lengths
+        new LiraEngine(collateralAddresses, priceFeedAddresses, address(lira));
+    }
+
+    // pirce tests ||||||||||||||||||||||
     function testGetUsdValue() public view {
         // Arrange
         uint256 amount = 1 ether; // 1 ETH in wei
@@ -46,6 +65,16 @@ contract LiraEngineTest is Test {
         assertEq(usdValue, expectedUsdValue, "USD value should match expected value");
     }
 
+    function testGetCollteralValueFromUsd() public view {
+        // Arrange
+        uint256 amountInUSD = 2000 * 10 ** 18; // $2000 in wei
+        uint256 expectedCollateralValue = 1 ether; // Assuming 1 ETH = $2000
+        // Act
+        uint256 collateralValue = liraEngine.getCollateralPriceFromUsd(weth, amountInUSD);
+        // Assert
+        assertEq(collateralValue, expectedCollateralValue, "Collateral value should match expected value");
+    }
+
     // collateral tests
 
     function testRevertIfCollateralZero() public {
@@ -53,7 +82,6 @@ contract LiraEngineTest is Test {
         vm.startPrank(USER);
         // We need to approve the LiraEngine to spend our WETH with the correct amount
         ERC20Mock(weth).approve(address(liraEngine), COLLATERAL_AMOUNT);
-
         // Act & Assert
         // Here we expect the revert to be thrown when we try to deposit zero collateral even though
         //we have approved the LiraEngine to spend our WETH

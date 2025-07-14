@@ -84,12 +84,13 @@ contract LiraEngine is ReentrancyGuard {
         }
         _;
     }
-
+    // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
     /**
      * @notice This modifier checks if the collateral address is allowed in the system.
      * @param tokenAddress The address of the token to be checked.
      * @dev If the token address is not in the price feed mapping, it will revert with an error.
      */
+
     modifier isCollateralAddressAllowed(address tokenAddress) {
         if (s_priceFeeds[tokenAddress] == address(0)) {
             // If the token is not in the price feed mapping, it is not allowed
@@ -99,7 +100,7 @@ contract LiraEngine is ReentrancyGuard {
     }
 
     // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
-    // contract constructor||||||||||||||||||||||||||||||||||||||||||
+    // contract constructor||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
     // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 
     /**
@@ -120,9 +121,9 @@ contract LiraEngine is ReentrancyGuard {
     }
 
     // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
-    // Collateral Functions||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
+    // Collateral Functions||||||||||||||||||||||||||||||||||||||||||||||
     // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
-    // 1. depositCollateral() - User can deposit collateral (transfer collateral to the contract)
+    //  depositCollateral() - User can deposit collateral (transfer collateral to the contract)
     /**
      * @notice This function allows users to deposit collateral into the Lira system.
      * @notice CEI - Checks, Effects, Interactions
@@ -147,7 +148,7 @@ contract LiraEngine is ReentrancyGuard {
             revert liraEngine_depositCollateralTransferFaild();
         }
     }
-    // 2. getCollateralBalance() - User can get the balance of a specific collateral token
+    //  getCollateralBalance() - User can get the balance of a specific collateral token
     // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
     /**
      * @notice This function retrieves the balance of a specific collateral token for a user.
@@ -159,7 +160,7 @@ contract LiraEngine is ReentrancyGuard {
     function getCollateralBalance(address collateralAddress) public view returns (uint256) {
         return s_collateralBalances[msg.sender][collateralAddress];
     }
-    // 3. getCollateralPriceInUSD - User can get the price of a specific collateral token in USD
+    // getCollateralPriceInUSD - User can get the price of a specific collateral token in USD
     // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
     /**
      * @notice This function retrieves the price of a given collateral token in USD.
@@ -178,7 +179,7 @@ contract LiraEngine is ReentrancyGuard {
         return ((uint256(price) * FEED_PRECISION) * amount) / USD_PRECISION; // Assuming price is in 8 decimals and amount is in 18 decimals
     }
 
-    // 3. getCollateralPriceFromUsd() - User can get the price of a specific collateral token from USD
+    //  getCollateralPriceFromUsd() - User can get the price of a specific collateral token from USD
     // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
     /**
      * @notice This function retrieves the price of a given collateral token from a specified USD amount.
@@ -219,7 +220,7 @@ contract LiraEngine is ReentrancyGuard {
         return totalCollateralValue;
     }
 
-    // 5.depositCollateralForLira() - User can deposit collateral for lira (transfer collateral to the contract and mint lira)
+    // depositCollateralForLira() - User can deposit collateral for lira (transfer collateral to the contract and mint lira)
     // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
     /**
      * @notice This function allows users to deposit collateral and mint Lira tokens.
