@@ -35,6 +35,8 @@ contract LiraEngine is ReentrancyGuard {
     error liraEngine_mintingFaild();
     /// @notice Error thrown when the amount exceeds the user's collateral balance
     error liraEngine_amountExceedsUserCollateral(uint256 amount);
+    /// @notice Error thrown when the user tries to redeem collateral but the health factor is okay
+    error liraEngine_healthFactorIsOkey();
 
     // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
     // State variables, and mappings can be defined here
@@ -56,9 +58,9 @@ contract LiraEngine is ReentrancyGuard {
     uint256 private constant USD_PRECISION = 1e18; // 1 Lira = 1 USD, so we use 18 decimals for USD and 10 for price feeds
     uint256 private constant LIQUIDATION_LIMI = 50; // 50% liquidation limit
     uint256 private constant LIQUIDATION_PRECENTAGE = 100; // 100% liquidation limit
-    uint256 private constant MIN_HEALTH_FACTOR = 1; // Minimum health factor to avoid liquidation
+    uint256 private constant MIN_HEALTH_FACTOR = 1e18; // Minimum health factor to avoid liquidation
     // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
-    // Event declarations can be defined here
+    // Event declarations can be defined here||||||||||||||||||||||||||||||||||||||||||
     // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 
     event CollateralDeposited(address indexed user, address indexed collateralAddress, uint256 amount);
@@ -66,12 +68,12 @@ contract LiraEngine is ReentrancyGuard {
     // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
     // modifiers can be defined here
     //=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
-
     /**
      * @notice This modifier checks if the amount is greater than zero.
      * @param amount The amount to be checked.
      * @dev If the amount is less than or equal to zero, it will revert with an error.
      */
+
     modifier isGreaterThanZero(uint256 amount) {
         if (amount <= 0) {
             revert liraEngine_greaterThanZero(amount);
@@ -113,9 +115,10 @@ contract LiraEngine is ReentrancyGuard {
         i_liraToken = Lira(liraTokenAddress);
     }
 
-    // Collateral Functions||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
-    // 1. depositCollateral() - User can deposit collateral (transfer collateral to the contract)
     // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+    // Collateral Functions||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
+    // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+    // 1. depositCollateral() - User can deposit collateral (transfer collateral to the contract)
     /**
      * @notice This function allows users to deposit collateral into the Lira system.
      * @notice CEI - Checks, Effects, Interactions
@@ -171,6 +174,23 @@ contract LiraEngine is ReentrancyGuard {
         return ((uint256(price) * FEED_PRECISION) * amount) / USD_PRECISION; // Assuming price is in 8 decimals and amount is in 18 decimals
     }
 
+    // 3. getCollateralPriceFromUsd() - User can get the price of a specific collateral token from USD
+    // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+    /**
+     * @notice This function retrieves the price of a given collateral token from a specified USD amount.
+     * @param collateralAddress The address of the collateral token.
+     * @param usdAmount The amount in USD to convert to the collateral token's price.
+     * @return The price of the collateral token in its native decimals.
+     * @dev This function uses Chainlink price feeds to get the price of the collateral token.
+     * It assumes that the price feed returns the price in 8 decimals and the amount is in 18 decimals.
+     */
+    function getCollateralPriceFromUsd(address collateralAddress, uint256 usdAmount) public view returns (uint256) {
+        AggregatorV3Interface priceFeedContract = AggregatorV3Interface(s_priceFeeds[collateralAddress]);
+        (, int256 price,,,) = priceFeedContract.latestRoundData();
+
+        return ((usdAmount * USD_PRECISION) / (uint256(price) * FEED_PRECISION)); // Assuming price is in 8 decimals and amount is in 18 decimals
+    }
+
     // 4. getAllCollateralsValueInUSD() - User can get the total value of all collaterals in USD
     // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
     /**
@@ -195,7 +215,7 @@ contract LiraEngine is ReentrancyGuard {
         return totalCollateralValue;
     }
 
-    // depositCollateralForLira() - User can deposit collateral for lira (transfer collateral to the contract and mint lira)
+    // 5.depositCollateralForLira() - User can deposit collateral for lira (transfer collateral to the contract and mint lira)
     // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
     /**
      * @notice This function allows users to deposit collateral and mint Lira tokens.
@@ -218,7 +238,7 @@ contract LiraEngine is ReentrancyGuard {
         mintLira(amountToMint);
     }
 
-    // 5. redeemCollateral() - User can redeem collateral (transfer collateral back to the user)
+    // 6. redeemCollateral() - User can redeem collateral (transfer collateral back to the user)
     // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
     /**
      * @notice This function allows users to redeem their collateral.
@@ -248,7 +268,7 @@ contract LiraEngine is ReentrancyGuard {
         _revertIfHealthFactorIsKaput(msg.sender);
     }
 
-    // redeemCollateralForLira() - User can redeem collateral for Lira (transfer collateral back to the user and burn lira)
+    // 7.redeemCollateralForLira() - User can redeem collateral for Lira (transfer collateral back to the user and burn lira)
     // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
     /**
      * @notice This function allows users to redeem collateral for Lira tokens.
@@ -268,10 +288,41 @@ contract LiraEngine is ReentrancyGuard {
         redeemCollateral(collateralAddress, amount);
     }
 
-    // Liqusidation Functions
-    // 1. liquidate() - User can liquidate collateral (liquidate collateral if the health factor is too low)
     // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+    // Liqusidation Functions |||||||||||||||||||||||||||||||||||||||||||||||||||||||
+    // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+    // 1. liquidate() - User can liquidate collateral (liquidate collateral if the health factor is too low)
+    /**
+     * @notice This function allows users to liquidate collateral if the health factor is too low.
+     * @param collateralAddress The address of the collateral token to be liquidated.
+     * @param user The address of the user whose collateral is being liquidated.
+     * @param debtToCover The amount of debt to cover through liquidation.
+     * @dev This function is used to liquidate collateral from a user's account if their health factor is below a certain threshold.
+     * It checks if the debt to cover is greater than zero and if the collateral address is allowed before proceeding with liquidation.
+     */
+    // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+    function liquidate(address collateralAddress, address user, uint256 debtToCover)
+        external
+        isGreaterThanZero(debtToCover)
+        isCollateralAddressAllowed(collateralAddress)
+        nonReentrant
+    {
+        // need to check health factor of the the user.
+        // we fellow CEI pattern (Checks, Effects, Interactions)
+        uint256 startingUserHealthFactor = _healthFactor(user);
+        if (startingUserHealthFactor >= MIN_HEALTH_FACTOR) {
+            revert liraEngine_healthFactorIsOkey();
+        }
+        // if not, then burn the lira tokens of the user
+        // and take the collateral from the user
+        uint256 collateralAmountFromDebtCovered = getCollateralPriceFromUsd(collateralAddress, debtToCover);
+        // we will give the liquidator the collateral amount from the debt covered plus some bonus 10%
+        uint256 bonusCollateralAmount = (collateralAmountFromDebtCovered * 10) / 100; // 10% bonus
+        uint256 totalCollateralAmountTobeRedeemed = collateralAmountFromDebtCovered + bonusCollateralAmount;
 
+    }
+
+    // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
     // Minting Functions||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
     // 1. mintLira() - User can borrow stable coins (mint lira against the collateral)
     // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
@@ -304,10 +355,10 @@ contract LiraEngine is ReentrancyGuard {
     function _getLiraMinted(address user) private view returns (uint256) {
         return s_liraMinted[user];
     }
-
-    // Lira Burnig Functions
-    // 1. burnLira() - User can burn lira (burn lira to reduce the amount of lira minted)
     // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+    // Lira Burnig Functions |||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
+    // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+    // 1. burnLira() - User can burn lira (burn lira to reduce the amount of lira minted)
     /**
      * @notice This function allows users to burn Lira tokens.
      * @param amountToBurn The amount of Lira tokens to burn.
@@ -315,6 +366,7 @@ contract LiraEngine is ReentrancyGuard {
      * It is designed to be called by users who want to reduce their minted Lira tokens.
      * It checks that the amount is greater than zero before proceeding.
      */
+
     function burnLira(uint256 amountToBurn) public isGreaterThanZero(amountToBurn) nonReentrant {
         s_liraMinted[msg.sender] -= amountToBurn;
         bool success = i_liraToken.transferFrom(msg.sender, address(this), amountToBurn);
@@ -323,9 +375,10 @@ contract LiraEngine is ReentrancyGuard {
         }
         i_liraToken.burn(amountToBurn);
     }
-    // Account info functions and HealthFactor||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
-    // 1.getAccountInfo() - User can get account info (total collateral value and total lira minted)
+    // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+    // Account info functions and HealthFactor|||||||||||||||||||||||||||||||||||||||||||||
     // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+    // 1.getAccountInfo() - User can get account info (total collateral value and total lira minted)
     /**
      * @notice This function retrieves account information for a user, including total collateral value and total Lira minted.
      * @param user The address of the user whose health factor is being queried.
@@ -341,13 +394,14 @@ contract LiraEngine is ReentrancyGuard {
         totalCollateralValueInUSD = getAllCollateralsValueInUSD(user);
         return (totalLiraMinted, totalCollateralValueInUSD);
     }
+    // 2.getAccountInfo() - User can get account info (total collateral value and total lira minted)
 
     function _healthFactor(address user) private view returns (uint256) {
         (uint256 totalLiraMinted, uint256 totalCollateralValueInUSD) = _getAccountInfo(user);
         uint256 collateralAdjustedForLiquidation = totalCollateralValueInUSD * LIQUIDATION_LIMI / LIQUIDATION_PRECENTAGE; // Adjust collateral value for liquidation limit
         return (collateralAdjustedForLiquidation * USD_PRECISION) / totalLiraMinted; // Health factor calculation
     }
-    // 2. _revertIfHealthFactorIsKaput() - Internal function to check if the health factor is below a certain threshold
+    // 3. _revertIfHealthFactorIsKaput() - Internal function to check if the health factor is below a certain threshold
 
     function _revertIfHealthFactorIsKaput(address user) private view {
         uint256 healthFactor = _healthFactor(user);
