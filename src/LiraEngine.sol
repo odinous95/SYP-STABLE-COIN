@@ -37,6 +37,8 @@ contract LiraEngine is ReentrancyGuard {
     error liraEngine_amountExceedsUserCollateral(uint256 amount);
     /// @notice Error thrown when the user tries to redeem collateral but the health factor is okay
     error liraEngine_healthFactorIsOkey();
+    /// @notice Error thrown when the health factor is not improved after liquidation
+    error liraEngine_healthFactorNotImproved();
 
     // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
     // State variables, and mappings can be defined here
@@ -64,7 +66,9 @@ contract LiraEngine is ReentrancyGuard {
     // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 
     event CollateralDeposited(address indexed user, address indexed collateralAddress, uint256 amount);
-    event CollateralRedeemed(address indexed user, address indexed collateralAddress, uint256 amount);
+    event CollateralRedeemed(
+        address indexed from, address indexed to, address indexed collateralAddress, uint256 amount
+    );
     // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
     // modifiers can be defined here
     //=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
@@ -253,19 +257,23 @@ contract LiraEngine is ReentrancyGuard {
         isCollateralAddressAllowed(collateralAddress)
         nonReentrant
     {
-        uint256 userCollateralBalance = s_collateralBalances[msg.sender][collateralAddress];
-        if (userCollateralBalance < amount) {
-            revert liraEngine_amountExceedsUserCollateral(amount);
-        }
+        _redeemCollateral(collateralAddress, amount, msg.sender, msg.sender);
+        _revertIfHealthFactorIsKaput(msg.sender);
+    }
+
+    function _redeemCollateral(address collateralAddress, uint256 amount, address from, address to)
+        private
+        isGreaterThanZero(amount)
+        isCollateralAddressAllowed(collateralAddress)
+    {
         // Update the user's collateral balance
-        s_collateralBalances[msg.sender][collateralAddress] -= amount;
-        emit CollateralRedeemed(msg.sender, collateralAddress, amount);
+        s_collateralBalances[from][collateralAddress] -= amount;
+        emit CollateralRedeemed(from, to, collateralAddress, amount);
         // Transfer the collateral back to the user
-        bool success = IERC20(collateralAddress).transfer(msg.sender, amount);
+        bool success = IERC20(collateralAddress).transfer(to, amount);
         if (!success) {
             revert liraEngine_tranferFaild();
         }
-        _revertIfHealthFactorIsKaput(msg.sender);
     }
 
     // 7.redeemCollateralForLira() - User can redeem collateral for Lira (transfer collateral back to the user and burn lira)
@@ -319,12 +327,19 @@ contract LiraEngine is ReentrancyGuard {
         // we will give the liquidator the collateral amount from the debt covered plus some bonus 10%
         uint256 bonusCollateralAmount = (collateralAmountFromDebtCovered * 10) / 100; // 10% bonus
         uint256 totalCollateralAmountTobeRedeemed = collateralAmountFromDebtCovered + bonusCollateralAmount;
-
+        _redeemCollateral(collateralAddress, totalCollateralAmountTobeRedeemed, user, msg.sender);
+        // burn the lira tokens of the user
+        _burnLira(debtToCover, user, msg.sender);
+        uint256 endingUserHealthFactor = _healthFactor(user);
+        if (endingUserHealthFactor <= startingUserHealthFactor) {
+            revert liraEngine_healthFactorNotImproved();
+        }
+        _revertIfHealthFactorIsKaput(msg.sender);
     }
 
     // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
     // Minting Functions||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
-    // 1. mintLira() - User can borrow stable coins (mint lira against the collateral)
+    //  mintLira() - User can borrow stable coins (mint lira against the collateral)
     // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
     /**
      * @notice This function allows users to mint Lira tokens.
@@ -343,7 +358,7 @@ contract LiraEngine is ReentrancyGuard {
             revert liraEngine_mintingFaild();
         }
     }
-    // 2. getLiraMinted() - User can get the total amount of lira minted
+    // getLiraMinted() - User can get the total amount of lira minted
     // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
     /**
      * @notice This function retrieves the total amount of Lira tokens minted by a user.
@@ -358,7 +373,7 @@ contract LiraEngine is ReentrancyGuard {
     // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
     // Lira Burnig Functions |||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
     // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
-    // 1. burnLira() - User can burn lira (burn lira to reduce the amount of lira minted)
+    // burnLira() - User can burn lira (burn lira to reduce the amount of lira minted)
     /**
      * @notice This function allows users to burn Lira tokens.
      * @param amountToBurn The amount of Lira tokens to burn.
@@ -370,6 +385,20 @@ contract LiraEngine is ReentrancyGuard {
     function burnLira(uint256 amountToBurn) public isGreaterThanZero(amountToBurn) nonReentrant {
         s_liraMinted[msg.sender] -= amountToBurn;
         bool success = i_liraToken.transferFrom(msg.sender, address(this), amountToBurn);
+        if (!success) {
+            revert liraEngine_tranferFaild();
+        }
+        i_liraToken.burn(amountToBurn);
+    }
+
+    // _burnLira() - Internal function to burn Lira tokens
+    function _burnLira(uint256 amountToBurn, address onBehalf, address liraFrom)
+        private
+        isGreaterThanZero(amountToBurn)
+        nonReentrant
+    {
+        s_liraMinted[onBehalf] -= amountToBurn;
+        bool success = i_liraToken.transferFrom(liraFrom, address(this), amountToBurn);
         if (!success) {
             revert liraEngine_tranferFaild();
         }
