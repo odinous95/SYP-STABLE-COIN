@@ -242,7 +242,7 @@ contract LiraEngine is ReentrancyGuard {
         mintLira(amountToMint);
     }
 
-    // 6. redeemCollateral() - User can redeem collateral (transfer collateral back to the user)
+    //  redeemCollateral() - User can redeem collateral (transfer collateral back to the user)
     // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
     /**
      * @notice This function allows users to redeem their collateral.
@@ -260,6 +260,17 @@ contract LiraEngine is ReentrancyGuard {
         _redeemCollateral(collateralAddress, amount, msg.sender, msg.sender);
         _revertIfHealthFactorIsKaput(msg.sender);
     }
+    // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+    // _redeemCollateral() - Internal function to redeem collateral
+    /**
+     * @notice This function redeems collateral for a user.
+     * @param collateralAddress The address of the collateral token to be redeemed.
+     * @param amount The amount of the collateral token to be redeemed.
+     * @param from The address from which the collateral is being redeemed.
+     * @param to The address to which the collateral is being transferred.
+     * @dev This function is used internally to redeem collateral from the Lira system.
+     * It updates the user's collateral balance and transfers the collateral back to the user.
+     */
 
     function _redeemCollateral(address collateralAddress, uint256 amount, address from, address to)
         private
@@ -276,7 +287,7 @@ contract LiraEngine is ReentrancyGuard {
         }
     }
 
-    // 7.redeemCollateralForLira() - User can redeem collateral for Lira (transfer collateral back to the user and burn lira)
+    // redeemCollateralForLira() - User can redeem collateral for Lira (transfer collateral back to the user and burn lira)
     // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
     /**
      * @notice This function allows users to redeem collateral for Lira tokens.
@@ -315,20 +326,14 @@ contract LiraEngine is ReentrancyGuard {
         isCollateralAddressAllowed(collateralAddress)
         nonReentrant
     {
-        // need to check health factor of the the user.
-        // we fellow CEI pattern (Checks, Effects, Interactions)
         uint256 startingUserHealthFactor = _healthFactor(user);
         if (startingUserHealthFactor >= MIN_HEALTH_FACTOR) {
             revert liraEngine_healthFactorIsOkey();
         }
-        // if not, then burn the lira tokens of the user
-        // and take the collateral from the user
         uint256 collateralAmountFromDebtCovered = getCollateralPriceFromUsd(collateralAddress, debtToCover);
-        // we will give the liquidator the collateral amount from the debt covered plus some bonus 10%
         uint256 bonusCollateralAmount = (collateralAmountFromDebtCovered * 10) / 100; // 10% bonus
         uint256 totalCollateralAmountTobeRedeemed = collateralAmountFromDebtCovered + bonusCollateralAmount;
         _redeemCollateral(collateralAddress, totalCollateralAmountTobeRedeemed, user, msg.sender);
-        // burn the lira tokens of the user
         _burnLira(debtToCover, user, msg.sender);
         uint256 endingUserHealthFactor = _healthFactor(user);
         if (endingUserHealthFactor <= startingUserHealthFactor) {
@@ -392,6 +397,14 @@ contract LiraEngine is ReentrancyGuard {
     }
 
     // _burnLira() - Internal function to burn Lira tokens
+    /**
+     * @notice This function burns Lira tokens from a specified address.
+     * @param amountToBurn The amount of Lira tokens to burn.
+     * @param onBehalf The address on whose behalf the tokens are being burned.
+     * @param liraFrom The address from which the tokens are being transferred before burning.
+     * @dev This function is used to burn Lira tokens from a specified address.
+     * It checks that the amount is greater than zero before proceeding.
+     */
     function _burnLira(uint256 amountToBurn, address onBehalf, address liraFrom)
         private
         isGreaterThanZero(amountToBurn)
@@ -407,7 +420,7 @@ contract LiraEngine is ReentrancyGuard {
     // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
     // Account info functions and HealthFactor|||||||||||||||||||||||||||||||||||||||||||||
     // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
-    // 1.getAccountInfo() - User can get account info (total collateral value and total lira minted)
+    // getAccountInfo() - User can get account info (total collateral value and total lira minted)
     /**
      * @notice This function retrieves account information for a user, including total collateral value and total Lira minted.
      * @param user The address of the user whose health factor is being queried.
@@ -423,14 +436,14 @@ contract LiraEngine is ReentrancyGuard {
         totalCollateralValueInUSD = getAllCollateralsValueInUSD(user);
         return (totalLiraMinted, totalCollateralValueInUSD);
     }
-    // 2.getAccountInfo() - User can get account info (total collateral value and total lira minted)
+    //  getAccountInfo() - User can get account info (total collateral value and total lira minted)
 
     function _healthFactor(address user) private view returns (uint256) {
         (uint256 totalLiraMinted, uint256 totalCollateralValueInUSD) = _getAccountInfo(user);
         uint256 collateralAdjustedForLiquidation = totalCollateralValueInUSD * LIQUIDATION_LIMI / LIQUIDATION_PRECENTAGE; // Adjust collateral value for liquidation limit
         return (collateralAdjustedForLiquidation * USD_PRECISION) / totalLiraMinted; // Health factor calculation
     }
-    // 3. _revertIfHealthFactorIsKaput() - Internal function to check if the health factor is below a certain threshold
+    // _revertIfHealthFactorIsKaput() - Internal function to check if the health factor is below a certain threshold
 
     function _revertIfHealthFactorIsKaput(address user) private view {
         uint256 healthFactor = _healthFactor(user);
