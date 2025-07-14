@@ -19,6 +19,7 @@ contract LiraEngineTest is Test {
     address wbtc;
 
     address public USER = makeAddr("user");
+    address public LIQUIDATOR = makeAddr("liquidator");
     uint256 public COLLATERAL_AMOUNT = 1 ether; // 1 ETH in wei
     uint256 public TOKEN_AMOUNT = 1000 * 10 ** 18; // 1000 LIRA tokens in wei
 
@@ -38,8 +39,10 @@ contract LiraEngineTest is Test {
         wbtc = wbtcAddress;
         ERC20Mock(weth).mint(USER, TOKEN_AMOUNT);
     }
-
+    // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
     // constructor tests ||||||||||||||||||||||
+    // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+
     address[] public collateralAddresses;
     address[] public priceFeedAddresses;
 
@@ -54,7 +57,24 @@ contract LiraEngineTest is Test {
         new LiraEngine(collateralAddresses, priceFeedAddresses, address(lira));
     }
 
-    // pirce tests ||||||||||||||||||||||
+    // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+    // Event tests |||||||||||||||||||||||||||||||||||||||||
+    // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+    function testDepositCollateralEmitsEvent() public {
+        // Arrange
+        vm.startPrank(USER);
+        ERC20Mock(weth).approve(address(liraEngine), COLLATERAL_AMOUNT);
+        // Act
+        vm.expectEmit(true, true, true, true);
+        emit LiraEngine.CollateralDeposited(USER, weth, COLLATERAL_AMOUNT);
+        liraEngine.depositCollateral(weth, COLLATERAL_AMOUNT);
+        vm.stopPrank();
+    }
+
+    // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+    //  pirce tests ||||||||||||||||||||||
+    // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+
     function testGetUsdValue() public view {
         // Arrange
         uint256 amount = 1 ether; // 1 ETH in wei
@@ -75,7 +95,9 @@ contract LiraEngineTest is Test {
         assertEq(collateralValue, expectedCollateralValue, "Collateral value should match expected value");
     }
 
-    // collateral tests
+    // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+    // collateral tests||||||||||||||||||||||
+    // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 
     function testRevertIfCollateralZero() public {
         // Arrange
@@ -88,6 +110,19 @@ contract LiraEngineTest is Test {
         vm.expectRevert(abi.encodeWithSelector(LiraEngine.liraEngine_greaterThanZero.selector, 0));
         // Attempt to deposit zero collateral
         liraEngine.depositCollateral(weth, 0);
+        vm.stopPrank();
+    }
+
+    function testDepositCollateral() public {
+        // Arrange
+        vm.startPrank(USER);
+        // We need to approve the LiraEngine to spend our WETH with the correct amount
+        ERC20Mock(weth).approve(address(liraEngine), COLLATERAL_AMOUNT);
+        // Act
+        liraEngine.depositCollateral(weth, COLLATERAL_AMOUNT);
+        // Assert
+        uint256 userCollateralBalance = liraEngine.getCollateralBalance(weth);
+        assertEq(userCollateralBalance, COLLATERAL_AMOUNT, "User collateral balance should match deposited amount");
         vm.stopPrank();
     }
 }
