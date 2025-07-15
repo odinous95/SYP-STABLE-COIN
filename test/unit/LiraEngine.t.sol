@@ -17,7 +17,6 @@ contract LiraEngineTest is Test {
     address weth;
     address wbtcPriceFeed;
     address wbtc;
-
     address public USER = makeAddr("user");
     address public LIQUIDATOR = makeAddr("liquidator");
     uint256 public COLLATERAL_AMOUNT = 1 ether; // 1 ETH in wei
@@ -39,7 +38,7 @@ contract LiraEngineTest is Test {
         wbtc = wbtcAddress;
         ERC20Mock(weth).mint(USER, TOKEN_AMOUNT);
     }
-// -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+    // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
     // modifier tests ||||||||||||||||||||||
     // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 
@@ -97,8 +96,20 @@ contract LiraEngineTest is Test {
         vm.stopPrank();
     }
 
+    // function testCollateralRedeemedEmitsEvent() public {
+    //     // Arrange
+    //     vm.startPrank(USER);
+    //     ERC20Mock(weth).approve(address(liraEngine), COLLATERAL_AMOUNT);
+    //     liraEngine.depositCollateral(weth, COLLATERAL_AMOUNT);
+    //     // Act & Assert
+    //     vm.expectEmit(true, true, true, true);
+    //     emit LiraEngine.CollateralRedeemed(USER, LIQUIDATOR, weth, COLLATERAL_AMOUNT / 2);
+    //     liraEngine.redeemCollateral(weth, COLLATERAL_AMOUNT);
+    //     vm.stopPrank();
+    // }
+
     // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
-    //  pirce tests ||||||||||||||||||||||
+    //  pirce and value tests ||||||||||||||||||||||
     // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 
     function testGetUsdValue() public view {
@@ -137,4 +148,37 @@ contract LiraEngineTest is Test {
         assertEq(userCollateralBalance, COLLATERAL_AMOUNT, "User collateral balance should match deposited amount");
         vm.stopPrank();
     }
+
+    function testRedeemCollateralForLira_Success() public {
+        // Arrange
+        vm.startPrank(USER);
+        ERC20Mock(weth).approve(address(liraEngine), COLLATERAL_AMOUNT);
+        liraEngine.depositCollateral(weth, COLLATERAL_AMOUNT);
+
+        uint256 amountToRedeem = 0.5 ether;
+        uint256 amountToBurn = 100 * 10 ** 18;
+        lira.approve(address(liraEngine), amountToBurn);
+
+        uint256 userLiraBefore = lira.balanceOf(USER);
+        uint256 userCollateralBefore = liraEngine.getCollateralBalance(weth);
+
+        // Act
+        liraEngine.redeemCollateralForLira(weth, amountToRedeem, amountToBurn);
+
+        // Assert
+        uint256 userLiraAfter = lira.balanceOf(USER);
+        uint256 userCollateralAfter = liraEngine.getCollateralBalance(weth);
+
+        assertEq(userLiraAfter, userLiraBefore - amountToBurn, "LIRA tokens should be burned");
+        assertEq(userCollateralAfter, userCollateralBefore - amountToRedeem, "Collateral should be redeemed");
+        vm.stopPrank();
+    }
+
+    // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+    // liquidation tests||||||||||||||||||||||
+    // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+
+    // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+    // Account info and Getter functions  tests||||||||||||||||||||||
+    // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 }

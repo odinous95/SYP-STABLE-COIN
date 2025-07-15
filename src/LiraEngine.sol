@@ -17,7 +17,7 @@ import {AggregatorV3Interface} from "@chainlink/contracts/src/v0.8/interfaces/Ag
  */
 contract LiraEngine is ReentrancyGuard {
     // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
-    // Error codes can be defined here
+    // Error codes can be defined here ||||||||||||||||||||||||||||||||||||||||||||
     // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
     /// @notice Error thrown when the amount is not greater than zero
     error liraEngine_greaterThanZero();
@@ -41,7 +41,7 @@ contract LiraEngine is ReentrancyGuard {
     error liraEngine_healthFactorNotImproved();
 
     // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
-    // State variables, and mappings can be defined here
+    // State variables, and mappings can be defined here ||||||||||||||||||||||||||||
     // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
     // Mapping to store the price feeds for each collateral address
     mapping(address collateralAddress => address priceFeed) private s_priceFeeds;
@@ -70,7 +70,7 @@ contract LiraEngine is ReentrancyGuard {
         address indexed from, address indexed to, address indexed collateralAddress, uint256 amount
     );
     // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
-    // modifiers can be defined here
+    // modifiers can be defined here|||||||||||||||||||||||||||||||||||||||||||||||
     //=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
     /**
      * @notice This modifier checks if the amount is greater than zero.
@@ -261,8 +261,9 @@ contract LiraEngine is ReentrancyGuard {
         _redeemCollateral(collateralAddress, amount, msg.sender, msg.sender);
         _revertIfHealthFactorIsKaput(msg.sender);
     }
-    // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
     // _redeemCollateral() - Internal function to redeem collateral
+    // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+
     /**
      * @notice This function redeems collateral for a user.
      * @param collateralAddress The address of the collateral token to be redeemed.
@@ -272,7 +273,6 @@ contract LiraEngine is ReentrancyGuard {
      * @dev This function is used internally to redeem collateral from the Lira system.
      * It updates the user's collateral balance and transfers the collateral back to the user.
      */
-
     function _redeemCollateral(address collateralAddress, uint256 amount, address from, address to)
         private
         isGreaterThanZero(amount)
@@ -309,9 +309,11 @@ contract LiraEngine is ReentrancyGuard {
     }
 
     // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
-    // Liqusidation Functions |||||||||||||||||||||||||||||||||||||||||||||||||||||||
+    // Liqusidation Functions ||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
     // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
     // 1. liquidate() - User can liquidate collateral (liquidate collateral if the health factor is too low)
+    // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+
     /**
      * @notice This function allows users to liquidate collateral if the health factor is too low.
      * @param collateralAddress The address of the collateral token to be liquidated.
@@ -320,7 +322,6 @@ contract LiraEngine is ReentrancyGuard {
      * @dev This function is used to liquidate collateral from a user's account if their health factor is below a certain threshold.
      * It checks if the debt to cover is greater than zero and if the collateral address is allowed before proceeding with liquidation.
      */
-    // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
     function liquidate(address collateralAddress, address user, uint256 debtToCover)
         external
         isGreaterThanZero(debtToCover)
@@ -344,8 +345,10 @@ contract LiraEngine is ReentrancyGuard {
     }
 
     // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
-    // Minting Functions||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
-    //  mintLira() - User can borrow stable coins (mint lira against the collateral)
+    // Minting Functions||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
+    // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+
+    // getLiraMinted() - User can get the total amount of lira minted
     // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
     /**
      * @notice This function allows users to mint Lira tokens.
@@ -356,6 +359,8 @@ contract LiraEngine is ReentrancyGuard {
      * It checks that the amount is greater than zero before proceeding.
      *
      */
+    //  mintLira() - User can borrow stable coins (mint lira against the collateral)
+    // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
     function mintLira(uint256 amountToMint) public isGreaterThanZero(amountToMint) nonReentrant {
         s_liraMinted[msg.sender] += amountToMint;
         _revertIfHealthFactorIsKaput(msg.sender);
@@ -379,7 +384,9 @@ contract LiraEngine is ReentrancyGuard {
     // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
     // Lira Burnig Functions |||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
     // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+
     // burnLira() - User can burn lira (burn lira to reduce the amount of lira minted)
+    // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
     /**
      * @notice This function allows users to burn Lira tokens.
      * @param amountToBurn The amount of Lira tokens to burn.
@@ -387,7 +394,6 @@ contract LiraEngine is ReentrancyGuard {
      * It is designed to be called by users who want to reduce their minted Lira tokens.
      * It checks that the amount is greater than zero before proceeding.
      */
-
     function burnLira(uint256 amountToBurn) public isGreaterThanZero(amountToBurn) nonReentrant {
         s_liraMinted[msg.sender] -= amountToBurn;
         bool success = i_liraToken.transferFrom(msg.sender, address(this), amountToBurn);
@@ -398,6 +404,7 @@ contract LiraEngine is ReentrancyGuard {
     }
 
     // _burnLira() - Internal function to burn Lira tokens
+    // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
     /**
      * @notice This function burns Lira tokens from a specified address.
      * @param amountToBurn The amount of Lira tokens to burn.
@@ -419,9 +426,10 @@ contract LiraEngine is ReentrancyGuard {
         i_liraToken.burn(amountToBurn);
     }
     // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
-    // Account info functions and HealthFactor|||||||||||||||||||||||||||||||||||||||||||||
+    // Account info functions|||||||||||||||||||||||||||||||||||||||||||||
     // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
     // getAccountInfo() - User can get account info (total collateral value and total lira minted)
+    //-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
     /**
      * @notice This function retrieves account information for a user, including total collateral value and total Lira minted.
      * @param user The address of the user whose health factor is being queried.
@@ -437,19 +445,91 @@ contract LiraEngine is ReentrancyGuard {
         totalCollateralValueInUSD = getAllCollateralsValueInUSD(user);
         return (totalLiraMinted, totalCollateralValueInUSD);
     }
-    //  getAccountInfo() - User can get account info (total collateral value and total lira minted)
+
+    // getAccountInformation() - User can get account information (total collateral value and total lira minted)
+    // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+    /**
+     * @notice This function retrieves account information for a user, including total collateral value and total Lira minted.
+     * @param user The address of the user whose account information is being queried.
+     * @return totalDscMinted The total amount of Lira minted by the user.
+     * @return collateralValueInUsd The total value of the user's collateral in USD.
+     * @dev This function is used to get the account information for a specific user.
+     */
+    function getAccountInformation(address user)
+        external
+        view
+        returns (uint256 totalDscMinted, uint256 collateralValueInUsd)
+    {
+        return _getAccountInfo(user);
+    }
+    // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+    //  HealthFactor functions|||||||||||||||||||||||||||||||||||||||||||||
+    // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+    // _healthFactor() - Internal function to calculate the health factor of a user
+    // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+    /**
+     * @notice This function calculates the health factor for a user based on their total Lira minted and total collateral value in USD.
+     * @param user The address of the user whose health factor is being calculated.
+     * @return The health factor of the user.
+     * @dev This function is used internally to calculate the health factor for a specific user.
+     */
 
     function _healthFactor(address user) private view returns (uint256) {
         (uint256 totalLiraMinted, uint256 totalCollateralValueInUSD) = _getAccountInfo(user);
-        uint256 collateralAdjustedForLiquidation = totalCollateralValueInUSD * LIQUIDATION_LIMI / LIQUIDATION_PRECENTAGE; // Adjust collateral value for liquidation limit
-        return (collateralAdjustedForLiquidation * USD_PRECISION) / totalLiraMinted; // Health factor calculation
+        return _calculateHealthFactor(totalLiraMinted, totalCollateralValueInUSD);
     }
-    // _revertIfHealthFactorIsKaput() - Internal function to check if the health factor is below a certain threshold
 
+    // _calculateHealthFactor() - Internal function to calculate the health factor based on total Lira minted and collateral value in USD
+    // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+    /**
+     * @notice This function calculates the health factor based on the total Lira minted and the collateral value in USD.
+     * @param totalDscMinted The total amount of Lira minted by the user.
+     * @param collateralValueInUsd The total value of the user's collateral in USD.
+     * @return The calculated health factor.
+     * @dev This function is used internally to calculate the health factor for a specific user.
+     */
+    function _calculateHealthFactor(uint256 totalDscMinted, uint256 collateralValueInUsd)
+        internal
+        pure
+        returns (uint256)
+    {
+        if (totalDscMinted == 0) return type(uint256).max;
+        uint256 collateralAdjustedForThreshold = (collateralValueInUsd * LIQUIDATION_LIMI) / LIQUIDATION_PRECENTAGE;
+        return (collateralAdjustedForThreshold * USD_PRECISION) / totalDscMinted;
+    }
+    // calculateHealthFactor() - User can calculate the health factor based on total Lira minted and collateral value in USD
+    // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+    /**
+     * @notice This function calculates the health factor based on the total Lira minted and collateral value in USD.
+     * @param totalDscMinted The total amount of Lira minted by the user.
+     * @param collateralValueInUsd The total value of the user's collateral in USD.
+     * @return The calculated health factor.
+     * @dev This function is used to calculate the health factor for a specific user.
+     */
+
+    function calculateHealthFactor(uint256 totalDscMinted, uint256 collateralValueInUsd)
+        external
+        pure
+        returns (uint256)
+    {
+        return _calculateHealthFactor(totalDscMinted, collateralValueInUsd);
+    }
+
+    // _revertIfHealthFactorIsKaput() - Internal function to check if the health factor is below a certain threshold
+    // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+    /**
+     * @notice This function checks if the health factor of a user is below the minimum threshold.
+     * @param user The address of the user whose health factor is being checked.
+     * @dev This function is used internally to ensure that the user's health factor is above the minimum threshold.
+     * If the health factor is below the minimum, it will revert with an error.
+     */
     function _revertIfHealthFactorIsKaput(address user) private view {
         uint256 healthFactor = _healthFactor(user);
         if (healthFactor < MIN_HEALTH_FACTOR) {
             revert liraEngine_healthFactorTooLow(healthFactor);
         }
     }
+    // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+    //  Getter functions|||||||||||||||||||||||||||||||||||||||||||||
+    // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 }
