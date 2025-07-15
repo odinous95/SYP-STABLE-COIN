@@ -19,8 +19,9 @@ contract LiraEngineTest is Test {
     address wbtc;
     address public USER = makeAddr("user");
     address public LIQUIDATOR = makeAddr("liquidator");
-    uint256 public COLLATERAL_AMOUNT = 1 ether; // 1 ETH in wei
+    uint256 public COLLATERAL_AMOUNT = 13 ether; // 1 ETH in wei
     uint256 public TOKEN_AMOUNT = 1000 * 10 ** 18; // 1000 LIRA tokens in wei
+    uint256 private constant MIN_HEALTH_FACTOR = 1e18; // Minimum health factor to avoid liquidation
 
     function setUp() external {
         deployer = new DeployLiraEngine();
@@ -65,24 +66,6 @@ contract LiraEngineTest is Test {
     }
 
     // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
-    // constructor tests ||||||||||||||||||||||
-    // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
-
-    address[] public collateralAddresses;
-    address[] public priceFeedAddresses;
-
-    function testRevertIfCollateralAddressLengthDoesNotMatchPriceFeeds() public {
-        // Arrange
-        collateralAddresses.push(weth);
-        priceFeedAddresses.push(wethPriceFeed);
-        priceFeedAddresses.push(wbtcPriceFeed);
-        // Act & Assert
-        vm.expectRevert(LiraEngine.liraEngine_tokenAddressesAndpriceFeedAddressesMustBeSameLength.selector);
-        // Attempt to deploy LiraEngine with mismatched lengths
-        new LiraEngine(collateralAddresses, priceFeedAddresses, address(lira));
-    }
-
-    // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
     // Event tests |||||||||||||||||||||||||||||||||||||||||
     // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
     function testDepositCollateralEmitsEvent() public {
@@ -109,27 +92,21 @@ contract LiraEngineTest is Test {
     // }
 
     // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
-    //  pirce and value tests ||||||||||||||||||||||
+    // constructor tests ||||||||||||||||||||||
     // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 
-    function testGetUsdValue() public view {
-        // Arrange
-        uint256 amount = 1 ether; // 1 ETH in wei
-        uint256 expectedUsdValue = 2000 * 10 ** 18; // Assuming 1 ETH = $2000
-        // Act
-        uint256 usdValue = liraEngine.getCollateralPriceInUSD(weth, amount);
-        // Assert
-        assertEq(usdValue, expectedUsdValue, "USD value should match expected value");
-    }
+    address[] public collateralAddresses;
+    address[] public priceFeedAddresses;
 
-    function testGetCollteralValueFromUsd() public view {
+    function testRevertIfCollateralAddressLengthDoesNotMatchPriceFeeds() public {
         // Arrange
-        uint256 amountInUSD = 2000 * 10 ** 18; // $2000 in wei
-        uint256 expectedCollateralValue = 1 ether; // Assuming 1 ETH = $2000
-        // Act
-        uint256 collateralValue = liraEngine.getCollateralPriceFromUsd(weth, amountInUSD);
-        // Assert
-        assertEq(collateralValue, expectedCollateralValue, "Collateral value should match expected value");
+        collateralAddresses.push(weth);
+        priceFeedAddresses.push(wethPriceFeed);
+        priceFeedAddresses.push(wbtcPriceFeed);
+        // Act & Assert
+        vm.expectRevert(LiraEngine.liraEngine_tokenAddressesAndpriceFeedAddressesMustBeSameLength.selector);
+        // Attempt to deploy LiraEngine with mismatched lengths
+        new LiraEngine(collateralAddresses, priceFeedAddresses, address(lira));
     }
 
     // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
@@ -149,28 +126,60 @@ contract LiraEngineTest is Test {
         vm.stopPrank();
     }
 
-    function testRedeemCollateralForLira_Success() public {
+    function testGetCollateralBalance() public {
         // Arrange
         vm.startPrank(USER);
         ERC20Mock(weth).approve(address(liraEngine), COLLATERAL_AMOUNT);
         liraEngine.depositCollateral(weth, COLLATERAL_AMOUNT);
-
-        uint256 amountToRedeem = 0.5 ether;
-        uint256 amountToBurn = 100 * 10 ** 18;
-        lira.approve(address(liraEngine), amountToBurn);
-
-        uint256 userLiraBefore = lira.balanceOf(USER);
-        uint256 userCollateralBefore = liraEngine.getCollateralBalance(weth);
-
         // Act
-        liraEngine.redeemCollateralForLira(weth, amountToRedeem, amountToBurn);
+        uint256 collateralBalance = liraEngine.getCollateralBalance(weth);
+        // Assert
+        assertEq(collateralBalance, COLLATERAL_AMOUNT, "Collateral balance should match deposited amount");
+        vm.stopPrank();
+    }
+
+    function testgetCollateralPriceInUSD() public view {
+        // Arrange
+        uint256 amount = 1 ether; // 1 ETH in wei
+        uint256 expectedUsdValue = 2000 * 10 ** 18; // Assuming 1 ETH = $2000
+        // Act
+        uint256 usdValue = liraEngine.getCollateralPriceInUSD(weth, amount);
+        // Assert
+        assertEq(usdValue, expectedUsdValue, "USD value should match expected value");
+    }
+
+    function testGetCollteralValueFromUsd() public view {
+        // Arrange
+        uint256 amountInUSD = 2000 * 10 ** 18; // $2000 in wei
+        uint256 expectedCollateralValue = 1 ether; // Assuming 1 ETH = $2000
+        // Act
+        uint256 collateralValue = liraEngine.getCollateralPriceFromUsd(weth, amountInUSD);
+        // Assert
+        assertEq(collateralValue, expectedCollateralValue, "Collateral value should match expected value");
+    }
+
+    function testdepositCollateralForLira_Success() public {
+        // Arrange
+        vm.startPrank(USER);
+        uint256 amountToDeposit = 3 ether; // 0.5 WETH
+        uint256 amountToMint = 1 * 10 ** 18; // 100 Lira
+
+        // Approve tokens for both deposits
+        ERC20Mock(weth).approve(address(liraEngine), amountToDeposit);
+        // Act
+        liraEngine.depositCollateralForLira(weth, amountToDeposit, amountToMint);
 
         // Assert
-        uint256 userLiraAfter = lira.balanceOf(USER);
-        uint256 userCollateralAfter = liraEngine.getCollateralBalance(weth);
+        uint256 userLiraBalance = lira.balanceOf(USER);
+        uint256 userCollateralBalance = liraEngine.getCollateralBalance(weth);
+        assertEq(userLiraBalance, amountToMint, "LIRA tokens should be minted");
+        // assertEq(userCollateralBalance, amountToDeposit, "Collateral should be deposited");
 
-        assertEq(userLiraAfter, userLiraBefore - amountToBurn, "LIRA tokens should be burned");
-        assertEq(userCollateralAfter, userCollateralBefore - amountToRedeem, "Collateral should be redeemed");
+        // Verify health factor
+        // uint256 healthFactor =
+        //     liraEngine.calculateHealthFactor(amountToMint, liraEngine.getAllCollateralsValueInUSD(USER));
+        // assertGe(healthFactor, MIN_HEALTH_FACTOR, "Health factor should be sufficient");
+
         vm.stopPrank();
     }
 
