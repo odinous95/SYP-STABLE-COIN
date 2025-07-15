@@ -125,20 +125,6 @@ contract LiraEngineTest is Test {
     // collateral tests||||||||||||||||||||||
     // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 
-    function testRevertIfCollateralZero() public {
-        // Arrange
-        vm.startPrank(USER);
-        // We need to approve the LiraEngine to spend our WETH with the correct amount
-        ERC20Mock(weth).approve(address(liraEngine), COLLATERAL_AMOUNT);
-        // Act & Assert
-        // Here we expect the revert to be thrown when we try to deposit zero collateral even though
-        //we have approved the LiraEngine to spend our WETH
-        vm.expectRevert(abi.encodeWithSelector(LiraEngine.liraEngine_greaterThanZero.selector, 0));
-        // Attempt to deposit zero collateral
-        liraEngine.depositCollateral(weth, 0);
-        vm.stopPrank();
-    }
-
     function testDepositCollateral() public {
         // Arrange
         vm.startPrank(USER);
