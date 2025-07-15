@@ -225,22 +225,50 @@ contract LiraEngine is ReentrancyGuard {
     /**
      * @notice This function allows users to deposit collateral and mint Lira tokens.
      * @param collateralAddress The address of the collateral token to be deposited.
-     * @param amount The amount of the collateral token to be deposited.
+     * @param collateralAmount The amount of the collateral token to be deposited.
      * @param amountToMint The amount of Lira tokens to mint.
      * @dev This function is used to deposit collateral into the Lira system and mint Lira tokens for the caller.
      * It checks if the user has enough collateral before proceeding with the deposit and minting.
      */
-    function depositCollateralForLira(address collateralAddress, uint256 amount, uint256 amountToMint)
+    function depositCollateralForLira(address collateralAddress, uint256 collateralAmount, uint256 amountToMint)
         external
-        isGreaterThanZero(amount)
+        isGreaterThanZero(collateralAmount)
         isGreaterThanZero(amountToMint)
         isCollateralAddressAllowed(collateralAddress)
-        nonReentrant
     {
         // Deposit collateral
-        depositCollateral(collateralAddress, amount);
+        depositCollateral(collateralAddress, collateralAmount);
         // Mint Lira tokens
         mintLira(amountToMint);
+    }
+    // _redeemCollateral() - Internal function to redeem collateral
+    // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+    /**
+     * @notice This function redeems collateral for a user.
+     * @param collateralAddress The address of the collateral token to be redeemed.
+     * @param amount The amount of the collateral token to be redeemed.
+     * @param from The address from which the collateral is being redeemed.
+     * @param to The address to which the collateral is being transferred.
+     * @dev This function is used internally to redeem collateral from the Lira system.
+     * It updates the user's collateral balance and transfers the collateral back to the user.
+     */
+
+    function _redeemCollateral(address collateralAddress, uint256 amount, address from, address to)
+        private
+        isGreaterThanZero(amount)
+        isCollateralAddressAllowed(collateralAddress)
+    {
+        if (amount > s_collateralBalances[from][collateralAddress]) {
+            revert liraEngine_amountExceedsUserCollateral(amount);
+        }
+        // Update the user's collateral balance
+        s_collateralBalances[from][collateralAddress] -= amount;
+        emit CollateralRedeemed(from, to, collateralAddress, amount);
+        // Transfer the collateral back to the user
+        bool success = IERC20(collateralAddress).transfer(to, amount);
+        if (!success) {
+            revert liraEngine_tranferFaild();
+        }
     }
 
     //  redeemCollateral() - User can redeem collateral (transfer collateral back to the user)
@@ -260,32 +288,6 @@ contract LiraEngine is ReentrancyGuard {
     {
         _redeemCollateral(collateralAddress, amount, msg.sender, msg.sender);
         _revertIfHealthFactorIsKaput(msg.sender);
-    }
-    // _redeemCollateral() - Internal function to redeem collateral
-    // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
-
-    /**
-     * @notice This function redeems collateral for a user.
-     * @param collateralAddress The address of the collateral token to be redeemed.
-     * @param amount The amount of the collateral token to be redeemed.
-     * @param from The address from which the collateral is being redeemed.
-     * @param to The address to which the collateral is being transferred.
-     * @dev This function is used internally to redeem collateral from the Lira system.
-     * It updates the user's collateral balance and transfers the collateral back to the user.
-     */
-    function _redeemCollateral(address collateralAddress, uint256 amount, address from, address to)
-        private
-        isGreaterThanZero(amount)
-        isCollateralAddressAllowed(collateralAddress)
-    {
-        // Update the user's collateral balance
-        s_collateralBalances[from][collateralAddress] -= amount;
-        emit CollateralRedeemed(from, to, collateralAddress, amount);
-        // Transfer the collateral back to the user
-        bool success = IERC20(collateralAddress).transfer(to, amount);
-        if (!success) {
-            revert liraEngine_tranferFaild();
-        }
     }
 
     // redeemCollateralForLira() - User can redeem collateral for Lira (transfer collateral back to the user and burn lira)
