@@ -20,7 +20,7 @@ contract LiraEngine is ReentrancyGuard {
     // Error codes can be defined here
     // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
     /// @notice Error thrown when the amount is not greater than zero
-    error liraEngine_greaterThanZero(uint256 amount);
+    error liraEngine_greaterThanZero();
     /// @notice Error thrown when the token address is not allowed in the system
     error liraEngine_tokenNotAllowed();
     /// @notice Error thrown when the transfer of collateral tokens fails
@@ -80,7 +80,7 @@ contract LiraEngine is ReentrancyGuard {
 
     modifier isGreaterThanZero(uint256 amount) {
         if (amount <= 0) {
-            revert liraEngine_greaterThanZero(amount);
+            revert liraEngine_greaterThanZero();
         }
         _;
     }
