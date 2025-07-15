@@ -39,6 +39,32 @@ contract LiraEngineTest is Test {
         wbtc = wbtcAddress;
         ERC20Mock(weth).mint(USER, TOKEN_AMOUNT);
     }
+// -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+    // modifier tests ||||||||||||||||||||||
+    // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+
+    function testRevertIfCollateralZero() public {
+        // Arrange
+        vm.startPrank(USER);
+        // We need to approve the LiraEngine to spend our WETH with the correct amount
+        ERC20Mock(weth).approve(address(liraEngine), COLLATERAL_AMOUNT);
+        // Act & Assert
+        // Here we expect the revert to be thrown when we try to deposit zero collateral even though
+        //we have approved the LiraEngine to spend our WETH
+        vm.expectRevert(LiraEngine.liraEngine_greaterThanZero.selector);
+        // Attempt to deposit zero collateral
+        liraEngine.depositCollateral(weth, 0);
+        vm.stopPrank();
+    }
+
+    function testRevertIfCollateralAddressIsNotAllowed() public {
+        ERC20Mock fakeToken = new ERC20Mock();
+        vm.startPrank(USER);
+        vm.expectRevert(LiraEngine.liraEngine_tokenNotAllowed.selector);
+        liraEngine.depositCollateral(address(fakeToken), COLLATERAL_AMOUNT);
+        vm.stopPrank();
+    }
+
     // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
     // constructor tests ||||||||||||||||||||||
     // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
