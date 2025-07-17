@@ -534,12 +534,4 @@ contract LiraEngine is ReentrancyGuard {
     // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
     //  Getter functions|||||||||||||||||||||||||||||||||||||||||||||
     // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
-
-    function getCollateralAddresses() public view returns (address[] memory) {
-        return s_collateralAddresses;
-    }
-
-    function getCollateralsBalace(address user, address collateralAddress) public view returns (uint256) {
-        return s_collateralBalances[user][collateralAddress];
-    }
 }
