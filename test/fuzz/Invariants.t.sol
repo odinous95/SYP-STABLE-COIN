@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 // what are the invariants of the system?
-
 // 1. The total supply of the stablecoin should always less than the total value of the underlying assets(collateral).
 // 2. getter functions should always return the correct values and never revert.
 
@@ -13,12 +12,14 @@ import {Lira} from "../../src/Lira.sol";
 import {HelperConfig} from "../../script/HelperConfig.s.sol";
 import {console} from "forge-std/console.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {Handler} from "./Handler.t.sol";
 
 contract InvariantsTest is StdInvariant, Test {
     DeployLiraEngine deployer;
     LiraEngine liraEngine;
     HelperConfig helperConfig;
     Lira lira;
+    Handler handler;
     address weth;
     address wbtc;
 
@@ -28,7 +29,9 @@ contract InvariantsTest is StdInvariant, Test {
         (,, address wethAddress, address wbtcAddress,) = helperConfig.activeChainConfig();
         weth = wethAddress;
         wbtc = wbtcAddress;
-        targetContract(address(liraEngine));
+        handler = new Handler(liraEngine, lira);
+        // Set the target contract for invariants, which is the Handler contract
+        targetContract(address(handler));
     }
 
     function invariant_totalSupplyLessThanCollateral() public view {
