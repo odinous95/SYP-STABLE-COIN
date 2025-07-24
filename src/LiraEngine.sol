@@ -458,7 +458,7 @@ contract LiraEngine is ReentrancyGuard {
      * @dev This function is used to get the account information for a specific user.
      */
     function getAccountInformation(address user)
-        external
+        public
         view
         returns (uint256 totalDscMinted, uint256 collateralValueInUsd)
     {

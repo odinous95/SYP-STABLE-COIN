@@ -11,6 +11,8 @@ contract Handler is Test {
     Lira lira;
     ERC20Mock weth;
     ERC20Mock wbtc;
+    uint256 constant MAX_COLLATERAL = type(uint96).max;
+    address[] public usersDepositors;
 
     constructor(LiraEngine _liraEngine, Lira _lira) {
         liraEngine = _liraEngine;
@@ -24,20 +26,22 @@ contract Handler is Test {
 
     function depositCollateral(uint256 randomNum, uint256 amountOfCollaterals) public {
         ERC20Mock narrowedCollateral = _getAllowedCollaterals(randomNum);
-        amountOfCollaterals = bound(amountOfCollaterals, 1, 1100);
+        amountOfCollaterals = bound(amountOfCollaterals, 1, MAX_COLLATERAL);
         vm.startPrank(msg.sender);
         narrowedCollateral.mint(msg.sender, amountOfCollaterals);
         narrowedCollateral.approve(address(liraEngine), amountOfCollaterals);
         liraEngine.depositCollateral(address(narrowedCollateral), amountOfCollaterals);
         vm.stopPrank();
+        // Record the user who deposited collateral
+        usersDepositors.push(msg.sender);
     }
 
     function redeemCollateral(uint256 randomNum, uint256 amountOfCollaterals) public {
         ERC20Mock narrowedCollateral = _getAllowedCollaterals(randomNum);
-        uint256 maxCollateralDeposited = liraEngine.getCollateralsBalace(msg.sender, address(narrowedCollateral));
+        uint256 maxCollateralDeposited = liraEngine.getCollateralBalance(msg.sender, address(narrowedCollateral));
         amountOfCollaterals = bound(amountOfCollaterals, 0, maxCollateralDeposited);
-        if (maxCollateralDeposited == 0) {
-            return; // No collateral to redeem
+        if (amountOfCollaterals == 0) {
+            return;
         }
         liraEngine.redeemCollateral(address(narrowedCollateral), amountOfCollaterals);
     }
@@ -48,5 +52,24 @@ contract Handler is Test {
         } else {
             return wbtc;
         }
+    }
+
+    function mintLira(uint256 amount, uint256 randomNum) public {
+        if (usersDepositors.length == 0) {
+            return;
+        }
+        address sender = usersDepositors[randomNum % usersDepositors.length];
+        (uint256 totalDscMinted, uint256 collateralValueInUsd) = liraEngine.getAccountInformation(sender);
+        uint256 maxLiraMintable = (collateralValueInUsd / 2) - totalDscMinted;
+        if (maxLiraMintable < 0) {
+            return;
+        }
+        amount = bound(amount, 1, uint256(maxLiraMintable));
+        if (amount == 0) {
+            return;
+        }
+        vm.startPrank(sender);
+        liraEngine.mintLira(amount);
+        vm.stopPrank();
     }
 }
