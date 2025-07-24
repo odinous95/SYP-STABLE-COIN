@@ -25,6 +25,20 @@ contract Handler is Test {
     // let's narrow down the function for only the avalible collateralAddress
 
     /**
+     * @notice Returns the allowed collateral based on a random number.
+     * @param randomNum A random number to determine which collateral to return.
+     * @return ERC20Mock The selected collateral token (WETH or WBTC).
+     * @dev This function uses the random number to select between WETH and WBTC.
+     */
+    function _getAllowedCollaterals(uint256 randomNum) private view returns (ERC20Mock) {
+        if (randomNum % 2 == 0) {
+            return weth;
+        } else {
+            return wbtc;
+        }
+    }
+
+    /**
      * @notice Deposits collateral into the contract for the sender.
      * @dev Updates the sender's collateral balance and emits a Deposit event.
      * @param amountOfCollaterals The amount of collateral to deposit.
@@ -43,6 +57,7 @@ contract Handler is Test {
         // Record the user who deposited collateral
         usersDepositors.push(msg.sender);
     }
+
     /**
      * @notice Redeems collateral from the contract for the sender.
      * @dev Updates the sender's collateral balance and emits a Redeem event.
@@ -51,7 +66,6 @@ contract Handler is Test {
      * @dev The random number is used to select between WETH and WBTC.
      * @dev The amount of collaterals is bounded between 0 and the maximum deposited collateral.
      */
-
     function redeemCollateral(uint256 randomNum, uint256 amountOfCollaterals) public {
         ERC20Mock narrowedCollateral = _getAllowedCollaterals(randomNum);
         uint256 maxCollateralDeposited = liraEngine.getCollateralBalance(msg.sender, address(narrowedCollateral));
@@ -60,20 +74,6 @@ contract Handler is Test {
             return;
         }
         liraEngine.redeemCollateral(address(narrowedCollateral), amountOfCollaterals);
-    }
-
-    /**
-     * @notice Returns the allowed collateral based on a random number.
-     * @param randomNum A random number to determine which collateral to return.
-     * @return ERC20Mock The selected collateral token (WETH or WBTC).
-     * @dev This function uses the random number to select between WETH and WBTC.
-     */
-    function _getAllowedCollaterals(uint256 randomNum) private view returns (ERC20Mock) {
-        if (randomNum % 2 == 0) {
-            return weth;
-        } else {
-            return wbtc;
-        }
     }
 
     /**

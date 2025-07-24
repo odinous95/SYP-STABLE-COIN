@@ -42,4 +42,10 @@ contract InvariantsTest is StdInvariant, Test {
             + liraEngine.getCollateralPriceInUSD(wbtc, totalWbtcDepposited);
         assert(totalSupply <= allCollateralValueInUsd);
     }
+
+    function invariant_getterFunctionsReturnCorrectValues() public view {
+        liraEngine.getCollateralAddresses();
+        liraEngine.getCollateralBalance(address(this), weth);
+        liraEngine.getCollateralBalance(address(this), wbtc);
+    }
 }
