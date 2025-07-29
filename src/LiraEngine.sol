@@ -542,4 +542,8 @@ contract LiraEngine is ReentrancyGuard {
     function getCollateralBalance(address user, address collateralAddress) public view returns (uint256) {
         return s_collateralBalances[user][collateralAddress];
     }
+
+    function getCollateralTokenPriceFeed(address collateral) external view returns (address) {
+        return s_priceFeeds[collateral];
+    }
 }
