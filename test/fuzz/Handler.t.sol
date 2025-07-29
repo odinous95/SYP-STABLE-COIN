@@ -5,6 +5,7 @@ import {Test} from "forge-std/Test.sol";
 import {LiraEngine} from "../../src/LiraEngine.sol";
 import {Lira} from "../../src/Lira.sol";
 import {ERC20Mock} from "@openzeppelin/contracts/mocks/token/ERC20Mock.sol";
+import {MockV3Aggregator} from "../mocks/MockV3Aggregator.sol";
 
 contract Handler is Test {
     LiraEngine liraEngine;
@@ -13,6 +14,7 @@ contract Handler is Test {
     ERC20Mock wbtc;
     uint256 constant MAX_COLLATERAL = type(uint96).max;
     address[] public usersDepositors;
+    MockV3Aggregator public ethUsdPriceFeed;
 
     constructor(LiraEngine _liraEngine, Lira _lira) {
         liraEngine = _liraEngine;
@@ -20,6 +22,7 @@ contract Handler is Test {
         address[] memory collateralAddresses = liraEngine.getCollateralAddresses();
         weth = ERC20Mock(collateralAddresses[0]);
         wbtc = ERC20Mock(collateralAddresses[1]);
+        ethUsdPriceFeed = MockV3Aggregator(liraEngine.getCollateralTokenPriceFeed(address(weth)));
     }
 
     // let's narrow down the function for only the avalible collateralAddress
@@ -99,5 +102,10 @@ contract Handler is Test {
         vm.startPrank(sender);
         liraEngine.mintLira(amount);
         vm.stopPrank();
+    }
+
+    function updateCollateralPrice(uint96 newPrice) public {
+        int256 newPriceInt = int256(uint256(newPrice));
+        ethUsdPriceFeed.updateAnswer(newPriceInt);
     }
 }
