@@ -6,6 +6,7 @@ import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {Lira} from "./Lira.sol"; // Assuming Lira is the stablecoin contract
 import {AggregatorV3Interface} from "@chainlink/contracts/src/v0.8/interfaces/AggregatorV3Interface.sol";
+import {OracleLib} from "./library/OracleLib.sol"; // Importing the OracleLib for price feed checks
 
 /**
  *  @title Lira Engine
@@ -39,6 +40,11 @@ contract LiraEngine is ReentrancyGuard {
     error liraEngine_healthFactorIsOkey();
     /// @notice Error thrown when the health factor is not improved after liquidation
     error liraEngine_healthFactorNotImproved();
+
+    // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+    // types can be defined here ||||||||||||||||||||||||||||||||||||||||||||
+    // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+    using OracleLib for AggregatorV3Interface;
 
     // -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
     // State variables, and mappings can be defined here ||||||||||||||||||||||||||||
@@ -174,7 +180,7 @@ contract LiraEngine is ReentrancyGuard {
 
     function getCollateralPriceInUSD(address collateralAddress, uint256 amount) public view returns (uint256) {
         AggregatorV3Interface priceFeedContract = AggregatorV3Interface(s_priceFeeds[collateralAddress]);
-        (, int256 price,,,) = priceFeedContract.latestRoundData();
+        (, int256 price,,,) = priceFeedContract.staleCheckLatestRoundData();
 
         return ((uint256(price) * FEED_PRECISION) * amount) / USD_PRECISION; // Assuming price is in 8 decimals and amount is in 18 decimals
     }
@@ -191,7 +197,7 @@ contract LiraEngine is ReentrancyGuard {
      */
     function getCollateralPriceFromUsd(address collateralAddress, uint256 usdAmount) public view returns (uint256) {
         AggregatorV3Interface priceFeedContract = AggregatorV3Interface(s_priceFeeds[collateralAddress]);
-        (, int256 price,,,) = priceFeedContract.latestRoundData();
+        (, int256 price,,,) = priceFeedContract.staleCheckLatestRoundData();
 
         return ((usdAmount * USD_PRECISION) / (uint256(price) * FEED_PRECISION)); // Assuming price is in 8 decimals and amount is in 18 decimals
     }
